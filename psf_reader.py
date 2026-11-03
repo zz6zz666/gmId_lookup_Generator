@@ -127,19 +127,6 @@ def _read_all_traces(raw_dir):
     return result
 
 
-def cds_srr(outfile, sweep_path, signal_name):
-    raw_dir = outfile if os.path.isdir(outfile) else outfile + ".raw"
-    if not os.path.isdir(raw_dir): raw_dir = outfile
-    traces = _read_all_traces(raw_dir)
-    if signal_name not in traces:
-        avail = list(traces.keys())[:15]
-        raise KeyError(signal_name + " not found. Available: " + str(avail) + "...")
-    class R: pass
-    r = R()
-    setattr(r, "A", traces[signal_name])
-    return r
-
-
 # ---------------------------------------------------------------------------
 # Noise PSF parsing
 # ---------------------------------------------------------------------------
@@ -239,39 +226,3 @@ def _parse_noise_psf_ascii(filepath):
                     result[name] = []
                 result[name].append(val)
     return result
-
-
-def cds_innersrr(outfile, sweep_path, signal_name, mode, n_vgs=None):
-    raw_dir = outfile if os.path.isdir(outfile) else outfile + ".raw"
-    if not os.path.isdir(raw_dir):
-        raw_dir = outfile
-    noise_files = sorted([f for f in os.listdir(raw_dir) if f.endswith(".noise")])
-    if not noise_files:
-        traces = _read_all_traces(raw_dir)
-        values = traces.get(signal_name, np.zeros((n_vgs or 91, n_vgs or 91)))
-        class R: pass
-        r = R()
-        r.field_names = ["A","_","__","V","___"]
-        for fn in r.field_names: setattr(r, fn, values)
-        return r
-    trace_name = signal_name.split(":")[0] if ":" in signal_name else signal_name
-    field_name = signal_name.split(":")[1] if ":" in signal_name else ""
-    all_vals = []
-    for fname in noise_files:
-        data = _parse_noise_psf(os.path.join(raw_dir, fname))
-        if field_name and trace_name in data and isinstance(data[trace_name], dict):
-            all_vals.append(data[trace_name].get(field_name, 0.0))
-        elif trace_name in data and isinstance(data[trace_name], (int, float)):
-            all_vals.append(data[trace_name])
-    nfiles = len(noise_files)
-    nvgs = n_vgs or 91
-    if len(all_vals) == nfiles:
-        values = np.array(all_vals, dtype=np.float64).reshape(nfiles, 1)
-        values = np.broadcast_to(values, (nfiles, nvgs)).T
-    else:
-        values = np.zeros((nvgs, nfiles))
-    class R: pass
-    r = R()
-    r.field_names = ["A","_","__","V","___"]
-    for fn in r.field_names: setattr(r, fn, values)
-    return r

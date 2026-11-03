@@ -2,7 +2,7 @@
   ekv_extract.wl
   Mathematica port of the two core EKV extraction functions.
 
-  Requires tsmcN40_lookup.wl to be loaded.
+  Requires lookup_table.wl to be loaded.
 *)
 
 ClearAll[XTRACT, XTRACT2, NPGradient, ekvCore];

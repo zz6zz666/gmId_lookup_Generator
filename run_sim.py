@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""1.1V core device Spectre simulation runner (no data extraction)."""
-import time, subprocess, sys, os
+"""Spectre simulation runner (no data extraction)."""
+import importlib
+import os, shutil, subprocess, sys, tempfile, time
 from multiprocessing import Pool
+
+from cli import pop_flag, pop_option, pop_range
 from paths import PATHS
-from config_tsmcN40 import get_config, write_netlist
+
+# Process config, selected with CONFIG_MODULE (exported from machine.env by
+# pipeline.sh).  The child processes of the Pool inherit the environment, so
+# they resolve the same module.
+_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN40'))
+get_config = _cfg.get_config
+write_netlist = _cfg.write_netlist
 
 
 def run_sim_corner(args):
     corner, fine_flag, outdir, l_range = args
-    import tempfile
     os.makedirs(PATHS['TMPDIR'], exist_ok=True)
     workdir = tempfile.mkdtemp(prefix='spec_work_', dir=PATHS['TMPDIR'])
     cwd0 = os.getcwd()
@@ -17,12 +25,10 @@ def run_sim_corner(args):
         return _run_sim_corner(corner, fine_flag, outdir, l_range)
     finally:
         os.chdir(cwd0)
-        import shutil
         shutil.rmtree(workdir, ignore_errors=True)
 
 
 def _run_sim_corner(corner, fine_flag, outdir, l_range):
-    from config_tsmcN40 import get_config, write_netlist
     c = get_config(corner, coarse=not fine_flag)
 
     nL = len(c['LENGTH'])
@@ -79,26 +85,12 @@ def _run_sim_corner(corner, fine_flag, outdir, l_range):
 
 def main():
     args = sys.argv[1:]
-    fine = '--fine' in args
-    if fine:
-        args.remove('--fine')
-    outdir = ''
-    if '--outdir' in args:
-        idx = args.index('--outdir')
-        args.pop(idx)
-        outdir = args.pop(idx) if idx < len(args) else ''
-    l_range = None
-    if '--L-range' in args:
-        idx = args.index('--L-range')
-        args.pop(idx)
-        if idx < len(args):
-            s = int(args.pop(idx))
-            e = int(args.pop(idx)) if idx < len(args) else s + 1
-            l_range = (s, e)
-    corners = args if args else ['tt', 'ff', 'ss', 'fs', 'sf']
+    fine = pop_flag(args, '--fine')
+    outdir = pop_option(args, '--outdir')
+    l_range = pop_range(args, '--L-range')
+    corners = args if args else get_config('tt', coarse=not fine)['corners']
 
     if l_range is None:
-        from config_tsmcN40 import get_config
         c = get_config(corners[0], coarse=not fine)
         l_range = (0, len(c['LENGTH']))
 

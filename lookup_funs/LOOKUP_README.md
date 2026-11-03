@@ -2,7 +2,7 @@
 
 ## 1. 查找表文件（.h5）
 
-由 `extract_new.py` 生成，HDF5 格式，一个文件 = 器件 + 工艺角：
+由 `extract.py` 生成，HDF5 格式，一个文件 = 器件 + 工艺角：
 
 ```text
 D:\tsmcN40_lookup\
@@ -30,16 +30,16 @@ D:\tsmcN40_lookup\
 | VGS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）                 |
 | VDS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）                 |
 | VSB 范围       | 0 ~ 0.8 V，步长 0.1 V（9 点）        |
-| L 范围         | 0.04 ~ 5 µm（48 点），详细值见下方               |
+| L 范围         | 0.04 ~ 2 µm（44 点），详细值见下方               |
 | 仿真宽度 W     | 10 µm                                        |
-| 单变量网格     | 48 × 56 × 56 × 9（(L, VGS, VDS, VSB)）= 1,354,752 点 |
+| 单变量网格     | 44 × 56 × 56 × 9（(L, VGS, VDS, VSB)）= 1,241,856 点 |
 
-**L 详细值（48 点）**：
+**L 详细值（44 点）**：
 
 - 0.04 ~ 0.14（步长 0.01）：`0.04 ... 0.14`
 - 0.16 ~ 0.50（步长 0.02）：`0.16 ... 0.50`
 - 0.55 ~ 1.00（步长 0.05）：`0.55 ... 1.00`
-- 1.2, 1.4, 1.6, 1.8, 2.0, 2.5, 3.0, 4.0, 5.0
+- 1.2, 1.4, 1.6, 1.8, 2.0
 
 ## 3. 数据结构
 
@@ -100,11 +100,11 @@ p_density = XTRACT2(vgs, ids, W=10)   # [n, VT, JS]
 ## 5. Mathematica
 
 Mathematica API 与附录及本项目 Python API 保持相同的函数划分和参数顺序。见项目
-`mathematica/tsmcN40_lookup.wl`：
+`mathematica/lookup_table.wl`：
 
 ```mathematica
-<< "mathematica/tsmcN40_lookup.wl";
-data = LoadTsmcN40["D:\\tsmcN40_lookup\\nch_tt.h5"];
+<< "mathematica/lookup_table.wl";
+data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5"];
 
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];
@@ -113,7 +113,7 @@ wt = lookup[data, "GM_CGG", "GM_ID", {5, 10, 15}, "VDS", 0.7,
 ```
 
 参数使用与 Matlab/Python 相同的交替名称和值形式，名称不区分大小写，未提供的
-`L/VGS/VDS/VSB` 使用附录规定的默认值。`N40Interpolant` 和 `SliceVGS` 仍保留为底层接口。
+`L/VGS/VDS/VSB` 使用附录规定的默认值。`LookupInterpolant` 和 `SliceVGS` 仍保留为底层接口。
 
 ```mathematica
 << "mathematica/ekv_extract.wl";

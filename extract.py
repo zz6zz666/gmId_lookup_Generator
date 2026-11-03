@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified extraction script for TSMC N40 (CRN40LP) 1.1V core devices.
+Extraction script for TSMC N40 (CRN40LP) 1.1V core devices.
 Produces .h5 lookup tables.
 
 Storage format:
@@ -16,21 +16,28 @@ Storage format:
     stored; the lookup API recomputes them on the fly from the primitives.
 
 Usage:
-  # Full extraction
-  python extract_new.py --fine --outdir <path> --workers 5
+  # Full extraction (raw PSF in $RAWDIR, tables written to --outdir)
+  python extract.py --fine --outdir <path> --workers 5
 
   # Incremental: only L range
-  python extract_new.py --fine --outdir <path> --L-range 0 5 --workers 5
+  python extract.py --fine --outdir <path> --L-range 0 5 --workers 5
 
   # Append to existing .h5
-  python extract_new.py --fine --outdir <path> --L-range 9 13 --workers 5
+  python extract.py --fine --outdir <path> --L-range 9 13 --workers 5
 """
 import time, sys, os, numpy as np
+import h5py
+import importlib
 from multiprocessing import Pool
+
+from cli import pop_flag, pop_int_option, pop_option, pop_range
+
+# Process config, selected with CONFIG_MODULE (default: TSMC N40).
+_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN40'))
+get_config = _cfg.get_config
 
 
 def save_mat(filename, data_dict):
-    import h5py
     with h5py.File(filename + '.h5', 'w') as f:
         for k, v in data_dict.items():
             if isinstance(v, str):
@@ -141,9 +148,7 @@ def make_mat_data(c, L_arr, device):
     return d
 
 
-def extract_corner(corner, fine, outdir, l_range, voltage, srcdir=None):
-    from config_tsmcN40 import get_config
-
+def extract_corner(corner, fine, outdir, l_range, srcdir=None):
     c = get_config(corner, coarse=not fine)
     nVGS = len(c['VGS'])
     nVDS = len(c['VDS'])
@@ -167,7 +172,6 @@ def extract_corner(corner, fine, outdir, l_range, voltage, srcdir=None):
 
     fn_n = os.path.join(outdir, c['savefilen'])
     fn_p = os.path.join(outdir, c['savefilep'])
-    import h5py
 
     mat_n_exists = os.path.exists(fn_n + '.h5')
     mat_p_exists = os.path.exists(fn_p + '.h5')
@@ -177,8 +181,8 @@ def extract_corner(corner, fine, outdir, l_range, voltage, srcdir=None):
         print('  Creating: %s.h5' % fn_n)
         print('  Creating: %s.h5' % fn_p)
         os.makedirs(outdir, exist_ok=True)
-        save_mat(fn_n, make_mat_data(c, L_n, 'nch'))
-        save_mat(fn_p, make_mat_data(c, L_p, 'pch'))
+        save_mat(fn_n, make_mat_data(c, L_n, c['modeln']))
+        save_mat(fn_p, make_mat_data(c, L_p, c['modelp']))
     else:
         print('  Appending to existing .h5 files')
 
@@ -257,7 +261,6 @@ def extract_corner(corner, fine, outdir, l_range, voltage, srcdir=None):
 
 
 def _verify(fname, l_start, l_end, all_L, idx_map, nVSB):
-    import h5py
     try:
         with h5py.File(fname, 'r') as f:
             id_data = np.array(f['ID'])
@@ -286,51 +289,23 @@ def _worker(args):
 
 def main():
     args = sys.argv[1:]
-    voltage = 'n40'
-    fine = '--fine' in args
-    if fine:
-        args.remove('--fine')
-    outdir = ''
-    if '--outdir' in args:
-        idx = args.index('--outdir')
-        args.pop(idx)
-        outdir = args.pop(idx) if idx < len(args) else ''
-    srcdir = ''
-    if '--srcdir' in args:
-        idx = args.index('--srcdir')
-        args.pop(idx)
-        srcdir = args.pop(idx) if idx < len(args) else ''
-    if '--voltage' in args:
-        idx = args.index('--voltage')
-        args.pop(idx)
-        voltage = args.pop(idx) if idx < len(args) else '18'
-    l_range = None
-    if '--L-range' in args:
-        idx = args.index('--L-range')
-        args.pop(idx)
-        if idx < len(args):
-            s = int(args.pop(idx))
-            e = int(args.pop(idx)) if idx < len(args) else s + 1
-            l_range = (s, e)
-    workers = 1
-    if '--workers' in args:
-        idx = args.index('--workers')
-        args.pop(idx)
-        workers = int(args.pop(idx)) if idx < len(args) else 1
+    fine = pop_flag(args, '--fine')
+    outdir = pop_option(args, '--outdir')
+    srcdir = pop_option(args, '--srcdir')
+    l_range = pop_range(args, '--L-range')
+    workers = pop_int_option(args, '--workers', 1)
+    corners = args if args else get_config('tt', coarse=not fine)['corners']
 
-    corners = args if args else ['tt', 'ff', 'ss', 'fs', 'sf']
-    if not l_range:
-        from config_tsmcN40 import get_config
+    if l_range is None:
         c0 = get_config(corners[0], coarse=not fine)
-        nL = len(c0['LENGTH'])
-        l_range = (0, nL)
+        l_range = (0, len(c0['LENGTH']))
 
     print('Fine: %s  Outdir: %s  Srcdir: %s  Workers: %d  L-range: %d-%d' %
           (fine, outdir if outdir else '.', srcdir if srcdir else '(same)', workers,
            l_range[0], l_range[1] - 1))
 
     t0 = time.time()
-    tasks = [(c, fine, outdir, l_range, voltage, srcdir if srcdir else None) for c in corners]
+    tasks = [(c, fine, outdir, l_range, srcdir if srcdir else None) for c in corners]
 
     if workers <= 1:
         results = [_worker(t) for t in tasks]

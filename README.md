@@ -8,15 +8,28 @@ TSMC N40 (CRN40LP) PDK 的 1.1V 核心 MOS 器件（nch / pch，BSIM4）gm/ID �
 
 ```
 .
-├── config_tsmcN40.py     # 1.1V 核心器件扫描参数配置（nch / pch）
-├── run_sim.py            # Spectre 并行仿真
-├── extract_new.py        # 数据提取，生成 .h5 查找表
+├── config_common.py      # 与工艺无关的配置（变量表、netlist 模板、装配）
+├── config_tsmcN40.py     # TSMC N40 工艺参数（轴 / 模型 / 器件尺寸）
+├── config_tsmc18.py      # TSMC 0.18µm 工艺参数（轴按参考 180nm 设置）
+├── run_sim.py            # Spectre 仿真（多工艺角并行）
+├── extract.py            # 数据提取，生成 .h5 查找表
 ├── psf_reader.py         # PSF 格式仿真结果读取器
+├── cli.py                # run_sim / extract 共用的命令行解析
+├── paths.py              # 读取 machine.env，解析本机路径
 ├── pipeline.sh           # 逐 L 流水线（仿真 → 提取 → 清理）
-├── get_nl.py             # 输出 fine 模式 L 点数（供 pipeline.sh 使用）
-├── lookup_funs/          # Python 查找表查询 API 与使用文档
-├── mathematica/          # Mathematica 加载 / 插值脚本
-│   └── tsmcN40_lookup.wl
+├── machine.env.example   # 本机路径配置模板（machine.env 不入库）
+├── lookup_funs/          # Python 查找表查询 API、EKV 提取与示例
+│   ├── lookup_table.py
+│   ├── ekv_extract.py
+│   ├── lookup_demo.py
+│   ├── xtract_demo.py
+│   └── LOOKUP_README.md
+├── mathematica/          # Mathematica 加载 / 插值脚本与示例
+│   ├── lookup_table.wl
+│   ├── ekv_extract.wl
+│   ├── lookup_demo.wl
+│   ├── xtract_demo.wl
+│   └── README.md
 └── README.md
 ```
 
@@ -24,14 +37,14 @@ TSMC N40 (CRN40LP) PDK 的 1.1V 核心 MOS 器件（nch / pch，BSIM4）gm/ID �
 
 | 参数       | 值                                                          |
 | ---------- | ----------------------------------------------------------- |
-| 参考宽度 W | 10 µm                                                    |
+| 参考器件   | W = 10 µm（2 µm/指 × 5 指），`w=2e-6 m=5`                     |
 | VGS        | 0 ~ 1.1 V，步长 0.02 → 56 点                                |
 | VDS        | 0 ~ 1.1 V，步长 0.02 → 56 点                                |
 | VSB        | 0 ~ 0.8 V，步长 0.1 → 9 点                                |
-| L          | 0.04 ~ 5 µm → 48 点（0.04~0.14 步 0.01；0.16~0.50 步 0.02；0.55~1.0 步 0.05；1.2,1.4,1.6,1.8,2,2.5,3,4,5） |
-| 单变量网格 | 48 × 56 × 56 × 9（(L, VGS, VDS, VSB)）= 1,354,752 点        |
+| L          | 0.04 ~ 2 µm → 44 点（0.04~0.14 步 0.01；0.16~0.50 步 0.02；0.55~1.0 步 0.05；1.2,1.4,1.6,1.8,2.0） |
+| 单变量网格 | 44 × 56 × 56 × 9（(L, VGS, VDS, VSB)）= 1,241,856 点        |
 
-每文件 21 个变量（19 DC + 2 噪声），共 10 文件（nch/pch × tt/ff/ss/fs/sf）。
+每文件 18 个变量（16 DC + 2 噪声），共 10 文件（nch/pch × tt/ff/ss/fs/sf）。
 
 ## 存储格式（.h5，HDF5）
 
@@ -44,7 +57,7 @@ TSMC N40 (CRN40LP) PDK 的 1.1V 核心 MOS 器件（nch / pch，BSIM4）gm/ID �
   `VDSAT`=BSIM 饱和电压，唯一存储的复合量；其余复合量均为比例，现算：
   `GM_ID`=gm/id、`GM_CGG`=gm/Cgg（fT=`GM_CGG/(2π)`）、`GM_GDS`=gm/gds（固有增益）、`ID_W`=ID/W。
 
-每文件约 180 MB（float32 + gzip6），10 文件合计约 1.8 GB。
+每文件约 50 MB（float32 + gzip6），10 文件合计约 0.5 GB。
 
 ## 关键配置说明（config_tsmcN40.py）
 
@@ -89,8 +102,10 @@ cp machine.env.example machine.env   # 然后填入本机路径
 bash pipeline.sh
 ```
 
-逐 L 增量处理，每级栅长 L 独立走完 仿真→提取→清理，5 个工艺角并行。
-原始仿真数据放 `$RAWDIR`（默认 `$HOME/simulation/raw`），提取完即删。
+逐 L 增量处理，每级栅长 L 独立走完 仿真→提取→清理。各工艺角在
+`run_sim.py` / `extract.py` 内部并行（每个 corner 一个 worker），`pipeline.sh` 只负责
+三个阶段的顺序、日志和计时。原始仿真数据放 `$RAWDIR`（默认 `$HOME/simulation/raw`），
+提取完即删。
 .h5 输出到 `$MATDIR`（默认 `$HOME/simulation/out`）。启动时会自动清理上次
 中断残留的 raw 数据、日志和过期 spectre 工作目录。
 
@@ -101,12 +116,35 @@ bash pipeline.sh
 $PYTHON_BIN run_sim.py tt --fine --outdir "$RAWDIR"
 
 # Step 2 — 数据提取
-$PYTHON_BIN extract_new.py --fine --srcdir "$RAWDIR" --outdir "$MATDIR" --workers 5
+$PYTHON_BIN extract.py --fine --srcdir "$RAWDIR" --outdir "$MATDIR" --workers 5
 
 # Step 3 — 使用查找表 API（示例见下文"Python 使用"）
 from lookup_funs.lookup_table import loadmat, lookup, lookupVGS
 nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
 ```
+
+### 4. 切换工艺 / 新增工艺
+
+工艺相关的东西按工艺放在 `config_<proc>.py` 里（模型卡、四个扫描轴、器件尺寸、
+corner 列表），共用部分在 `config_common.py`（存储变量表、PSF 信号映射、
+netlist 模板、装配与写网表）。运行时用 `CONFIG_MODULE` 选择配置：
+
+```bash
+CONFIG_MODULE=config_tsmc18 bash pipeline.sh
+# 或直接写进 machine.env：CONFIG_MODULE=config_tsmc18
+```
+
+同时把 `PDK_MODEL_FILE` 指向该工艺的模型卡，并建议把 `MATDIR` 也分到不同
+目录；`tsmc18` 的表文件名额外带 `tsmc18_` 前缀（`tsmc18_nch_tt.h5`），
+即使共用目录也不会覆盖 N40 表。
+
+`tsmc18` 的 fine 轴按参考 180nm 设置：VGS / VDS 0–1.8 V 步 25 mV（73 点）、
+VSB 0–1.0 V 步 0.1 V（11 点）、L 0.18–2.0 µm 共 32 点，即
+32 × 73 × 73 × 11 = 1,875,808 点；器件仍为 10 µm / 5 指（`w=2e-6 m=5`）。
+
+新增工艺：复制 `config_tsmc18.py`，改 `TAG / INFO / SECTIONS / CORNERS /
+VDD / VSB_MAX / WIDTH / NFING` 和 `FINE` 轴即可，无需改动
+`run_sim.py`、`extract.py` 或 `pipeline.sh`。
 
 ## Python 使用
 
@@ -135,14 +173,18 @@ nch.GM / nch.CGG                         # 任意比例量现算（= GM_CGG，fT
 
 ## Mathematica 使用
 
-HDF5 可直接用 Mathematica `Import` 读取。见 `mathematica/tsmcN40_lookup.wl`：
+HDF5 可直接用 Mathematica `Import` 读取。见 `mathematica/lookup_table.wl`：
 
 ```mathematica
-<< "mathematica/tsmcN40_lookup.wl"
-data = LoadTsmcN40["D:\\tsmcN40_lookup\\nch_tt.h5"];
+<< "mathematica/lookup_table.wl"
+data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5"];
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];
 wt = lookup[data, "GM_CGG", "GM_ID", {5, 10, 15}, "VDS", 0.7, "L", 0.1];
+
+(* 正查一次获取多个变量；返回值顺序与变量名列表一致 *)
+{intrinsicGain, idPerWidth} = lookup[data, {"GM_GDS", "ID_W"},
+  "L", {0.04, 0.06}, "VGS", {0.6, 0.7}, "VDS", 0.7, "VSB", 0.];
 
 (* MapThread 参数按位置配对；原生 VDS 列表仍是笛卡尔维度 *)
 gain = lookup[data, "GM_GDS", "GM_ID", #1, "L", #2,
@@ -155,13 +197,13 @@ Dimensions[gain]                         (* {3, 3} = 配对维度 × VDS维度 *
 - 加载查表文件后，函数体直接为 `lookup` 或 `lookupVGS` 的 `/@` 与 `MapThread`
   会自动合并为分块批量查询。`MapThread` 中的列表按位置配对，函数体内直接传给查表函数的
   普通列表仍形成笛卡尔积；其他 Mathematica 函数的 `Map`/`MapThread` 行为不变。
-- 可用 `DisableTsmcN40MapOptimization[]` 禁用上述系统规则，并用
-  `EnableTsmcN40MapOptimization[]` 再次启用。复杂 Slot 表达式或不支持的查表模式自动回退到逐项求值。
+- 可用 `DisableMapOptimization[]` 禁用上述系统规则，并用
+  `EnableMapOptimization[]` 再次启用。复杂 Slot 表达式或不支持的查表模式自动回退到逐项求值。
 - `XTRACT`、`XTRACT2` 位于 `mathematica/ekv_extract.wl`，保持附录中的位置参数接口。
 - 附录缺省值为：`lookup` 使用最小 `L`、完整 `VGS`、`VDD/2` 和 `VSB=0`；
   `lookupVGS` 另使用 PCHIP；`XTRACT/XTRACT2` 使用 `rho=0.6` 和 300 K。
 - `XTRACT2` 缺省直接使用总电流并返回 `IS`。显式提供扩展宽度参数时才返回 `JS=IS/W`。
-- `N40Interpolant`、`SliceVGS` 保留为需要直接操作插值函数时使用的底层接口。
+- `LookupInterpolant`、`SliceVGS` 保留为需要直接操作插值函数时使用的底层接口。
 - 验证：`wolframscript -script mathematica/xtract_demo.wl`（读取真实 .h5，
   打印与 Python `lookup` 一致的插值结果）。
 

@@ -1,7 +1,7 @@
 (* ::Package:: *)
 
 (* =====================================================================
-   xtract_demo.wl  \[LongDash]  EKV 参数提取与重建
+   xtract_demo.wl  \[LongDash]  EKV \:53c2\:6570\:63d0\:53d6\:4e0e\:91cd\:5efa
    \:7528\:6cd5: \:5148\:8fd0\:884c 0/1 \:53f7 cell\:ff0c\:518d\:9010\:8282\:4e0b\:884c\:8fd0\:884c\:3002
    \:6838\:5fc3\:53ea\:7528 XTRACT\:ff08\:4e00\:6b21\:63d0\:53d6 n/VT/JS \:53ca\:5176\:5bf9 VDS \:7684\:4e00\:9636/\:4e8c\:9636\:5bfc\:6570\:ff09\:3002
    ===================================================================== *)
@@ -11,10 +11,10 @@
    ===================================================================== *)
 dataDir = "D:\\tsmcN40_lookup";
 scriptDir = FileNameJoin[{dataDir, "mathematica"}];
-Get[FileNameJoin[{scriptDir, "tsmcN40_lookup.wl"}]];
+Get[FileNameJoin[{scriptDir, "lookup_table.wl"}]];
 Get[FileNameJoin[{scriptDir, "ekv_extract.wl"}]];
 
-nch = LoadTsmcN40[FileNameJoin[{dataDir, "nch_tt.h5"}]];
+nch = LoadLookupTable[FileNameJoin[{dataDir, "nch_tt.h5"}]];
 
 UT = 1.380649*^-23*300./1.602176634*^-19;   (* kT/q @300K *)
 L = 0.04; VDS = 0.55; VSB = 0.; rho = 0.6;   (* VDS=VDD/2 *)
@@ -42,8 +42,8 @@ q = 10.^Subdivide[-3, 1, 199];
 VGSekv = n*UT*(2 (q - 1) + Log[q]) + VT;
 JDekv = (q^2 + q)*JS;
 gmIDekv = 1/(n*UT (1 + q));
-JDLut = lookup[nch, "ID_W", "L", L, "VGS", vgs, "VDS", VDS, "VSB", VSB];
-gmIDLut = lookup[nch, "GM_ID", "L", L, "VGS", vgs, "VDS", VDS, "VSB", VSB];
+{JDLut, gmIDLut} = lookup[nch, {"ID_W", "GM_ID"},
+   "L", L, "VGS", vgs, "VDS", VDS, "VSB", VSB];
 ref = rho*Max[gmIDLut];
 VGSr = Interpolation[Transpose[{Reverse[gmIDekv], Reverse[VGSekv]}],
    InterpolationOrder -> 1][ref];
@@ -51,8 +51,8 @@ JDr = Interpolation[Transpose[{VGSekv, JDekv}], InterpolationOrder -> 1][VGSr];
 Row[{"VGSr=", VGSr, " V, JDr=", JDr*1.*^6, " uA/um"}]
 
 (* =====================================================================
-   3. 电流密度 JD vs VGS \[LongDash] 查表 vs 基本 EKV
-   黑点 = 参考工作点 gm/ID = rho*max(lookup)
+   3. \:7535\:6d41\:5bc6\:5ea6 JD vs VGS \[LongDash] \:67e5\:8868 vs \:57fa\:672c EKV
+   \:9ed1\:70b9 = \:53c2\:8003\:5de5\:4f5c\:70b9 gm/ID = rho*max(lookup)
    ===================================================================== *)
 Show[ListLogPlot[{Transpose[{vgs, Abs[JDLut]*1.*^6}],
    Transpose[{VGSekv, JDekv*1.*^6}]}, Joined -> True,
@@ -62,7 +62,7 @@ Show[ListLogPlot[{Transpose[{vgs, Abs[JDLut]*1.*^6}],
  ListLogPlot[{{VGSr, JDr*1.*^6}}, PlotStyle -> {Black, PointSize[.02]}]]
 
 (* =====================================================================
-   4. 跨导效率 gm/ID vs VGS \[LongDash] 查表 vs 基本 EKV
+   4. \:8de8\:5bfc\:6548\:7387 gm/ID vs VGS \[LongDash] \:67e5\:8868 vs \:57fa\:672c EKV
    ===================================================================== *)
 ListPlot[{Transpose[{vgs, gmIDLut}], Transpose[{VGSekv, gmIDekv}]},
  Joined -> True, PlotStyle -> {Blue, {Red, Dashed}}, PlotRange -> All,
@@ -104,12 +104,15 @@ With[{yy = XTRACT[nch, L, vdsVec, VSB, rho]},
 With[{yy = XTRACT[nch, L, Select[nch["VDS"], .5 <= # <= .7 &], VSB, rho]},
   j = First@Ordering[Abs[Select[nch["VDS"], .5 <= # <= .7 &] - 0.6], 1];
   nJ = yy[[j, 2]]; dnJ = yy[[j, 5]]; dvtJ = yy[[j, 6]]; djsJ = yy[[j, 7]];
-  gmidLut = lookup[nch, "GM_ID", "L", L, "VGS", vgs, "VDS", 0.6, "VSB", VSB];
+   {gmidLut, gainLut} = lookup[nch, {"GM_ID", "GM_GDS"},
+      "L", L, "VGS", vgs, "VDS", 0.6, "VSB", VSB];
   qG = Map[Max[1/(nJ*UT*#) - 1, $MachineEpsilon] &, gmidLut];
   xG = 2 (qG - 1) + Log[qG];
-  gainLut = lookup[nch, "GM_GDS", "L", L, "VGS", vgs, "VDS", 0.6, "VSB", VSB];
   gainEkv = 1/(djsJ/gmidLut - dvtJ - xG*dnJ);
-  ListLogPlot[{Transpose[{gmidLut, gainLut}], Transpose[{gmidLut, gainEkv}]},
+  ListLinePlot[{Transpose[{gmidLut, gainLut}], Transpose[{gmidLut, gainEkv}]},
    PlotStyle -> {Blue, {Red, Dashed}}, PlotLegends -> {"Lookup", "EKV"},
    AxesLabel -> {"gm/ID (S/A)", "Intrinsic gain"}, GridLines -> Automatic]
 ]
+
+
+

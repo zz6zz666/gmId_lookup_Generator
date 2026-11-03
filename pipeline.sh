@@ -1,7 +1,13 @@
 #!/bin/bash
 # =============================================================================
 # L-level pipeline: simulate -> extract -> delete for TSMC N40 (CRN40LP)
-# 1.1V core devices (nch / pch). 5 corners run in parallel per L.
+# 1.1V core devices (nch / pch).
+#
+# One L point at a time: run_sim.py simulates all corners in parallel (one
+# worker per corner), extract.py extracts them in parallel, then that L's raw
+# PSF data is deleted so disk usage stays bounded.  The parallelism lives in
+# the Python scripts; this script only sequences the stages, keeps per-L logs
+# and reports timing.
 #
 # All machine-specific paths come from machine.env in this directory
 # (no hardcoded directories or usernames in the scripts). Raw simulation
@@ -20,18 +26,20 @@ if [ -f "$SCRIPTDIR/machine.env" ]; then
     source "$SCRIPTDIR/machine.env"
 fi
 set +a
-SCRIPTDIR="${SCRIPTDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 # Required settings (fail loudly if missing).
 : "${RAWDIR:?machine.env must set RAWDIR (transient raw simulation output)}"
 : "${MATDIR:?machine.env must set MATDIR (final .h5 output)}"
 : "${PYTHON_BIN:?machine.env must set PYTHON_BIN (python>=3.10 with psf-parser)}"
-: "${LOGDIR:?machine.env must set LOGDIR (pipeline logs / fail markers)}"
+: "${LOGDIR:?machine.env must set LOGDIR (pipeline logs)}"
 : "${TMPDIR:?machine.env must set TMPDIR (spectre work dirs)}"
 
 PYTHON="$PYTHON_BIN"
 FINE="--fine"
-CORNERS="tt ff ss fs sf"
+# Process config module; set CONFIG_MODULE in machine.env to switch process.
+CONFIG_MODULE="${CONFIG_MODULE:-config_tsmcN40}"
+export CONFIG_MODULE
+WORKERS=5   # corner-level parallelism inside extract.py
 
 cleanup() {
     echo ""
@@ -47,37 +55,19 @@ cleanup_stale() {
     echo "[*] Cleaning stale artifacts ..."
     mkdir -p "$LOGDIR" "$TMPDIR"
     # Leftover raw data from an aborted run
-    rm -rf "$RAWDIR"/raw_tsmcN40_* 2>/dev/null || true
-    # Old pipeline logs / fail markers
-    rm -f "$LOGDIR"/*.log "$LOGDIR"/*.fail 2>/dev/null || true
+    rm -rf "$RAWDIR"/raw_* 2>/dev/null || true
+    # Old pipeline logs
+    rm -f "$LOGDIR"/*.log 2>/dev/null || true
     # Stale spectre work dirs (>= 1 day old)
     find "$TMPDIR" -maxdepth 1 -type d -name 'spec_work_*' -mtime +1 \
         -exec rm -rf {} + 2>/dev/null || true
-}
-
-# ----- Helper: run one corner simulation -------------------------------------
-run_sim() {
-    local corner=$1 l_start=$2 l_end=$3
-    local logfile="$LOGDIR/sim_${corner}_L${l_start}.log"
-    cd "$SCRIPTDIR"
-    $PYTHON run_sim.py "$corner" $FINE --outdir "$RAWDIR" --L-range "$l_start" "$l_end" 2>&1 | tee "$logfile"
-}
-
-# ----- Helper: run one corner extraction -------------------------------------
-run_extract() {
-    local corner=$1 l_start=$2 l_end=$3
-    local logfile="$LOGDIR/ext_${corner}_L${l_start}.log"
-    cd "$SCRIPTDIR"
-    $PYTHON extract_new.py $FINE \
-        --srcdir "$RAWDIR" --outdir "$MATDIR" \
-        --L-range "$l_start" "$l_end" --workers 1 "$corner" 2>&1 | tee "$logfile"
 }
 
 # ----- Helper: clean one L across all corners --------------------------------
 clean_l() {
     local idx=$1
     local prefix="L$(printf '%03d' $idx)_"
-    for d in "$RAWDIR"/raw_tsmcN40_*/; do
+    for d in "$RAWDIR"/raw_*/; do
         if [ -d "$d" ]; then
             # Delete directories matching this L index
             find "$d" -maxdepth 1 -type d -name "${prefix}*" -exec rm -rf {} + 2>/dev/null || true
@@ -85,26 +75,9 @@ clean_l() {
     done
 }
 
-# ----- Helper: check if a previous run failed --------------------------------
-check_failure() {
-    local stage=$1 l_idx=$2
-    local failed=0
-    for corner in $CORNERS; do
-        if [ -f "$LOGDIR/${stage}_${corner}_L${l_idx}.fail" ]; then
-            failed=1
-            echo "    [ERROR] $stage failed for corner=$corner L=$l_idx"
-            echo "    Log: $LOGDIR/${stage}_${corner}_L${l_idx}.log"
-        fi
-    done
-    if [ $failed -ne 0 ]; then
-        echo "*** Aborting due to failures above ***"
-        exit 1
-    fi
-}
-
 # ----- Main ------------------------------------------------------------------
 echo "========================================"
-echo "Pipeline (TSMC N40 1.1V core): 5 corners x nL, fine mode"
+echo "Pipeline: process config $CONFIG_MODULE, corners x nL, fine mode"
 echo "Script:  $SCRIPTDIR"
 echo "Raw:     $RAWDIR"
 echo "MAT:     $MATDIR"
@@ -115,10 +88,10 @@ mkdir -p "$MATDIR" "$LOGDIR" "$TMPDIR"
 cleanup_stale
 
 cd "$SCRIPTDIR"
-nL=$($PYTHON get_nl.py)
+# L count comes from the same config the simulators read (no duplicated grid).
+nL=$($PYTHON "$CONFIG_MODULE.py" $FINE | tail -n1)
 
 echo "[*] Total L count: $nL"
-echo "[*] Corners: $CORNERS"
 echo ""
 
 t_total_start=$(date +%s)
@@ -129,38 +102,17 @@ for l in $(seq 0 $((nL - 1))); do
     echo ""
     echo "===== L=$l / $((nL - 1)) ====="
 
-    # --- 1. Parallel simulation (5 corners) ---
+    # --- 1. Simulation (all corners in parallel inside run_sim.py) ---
     echo "[1/3] Simulating ..."
-    pids=()
-    for corner in $CORNERS; do
-        (
-            if run_sim "$corner" "$l" "$l_next"; then
-                rm -f "$LOGDIR/sim_${corner}_L${l}.fail"
-            else
-                touch "$LOGDIR/sim_${corner}_L${l}.fail"
-            fi
-        ) &
-        pids+=($!)
-    done
-    for pid in "${pids[@]}"; do wait "$pid"; done
-    check_failure "sim" "$l"
+    $PYTHON run_sim.py $FINE --outdir "$RAWDIR" --L-range "$l" "$l_next" \
+        2>&1 | tee "$LOGDIR/sim_L${l}.log"
     echo "      Simulation OK"
 
-    # --- 2. Parallel extraction (5 corners) ---
+    # --- 2. Extraction (all corners in parallel inside extract.py) ---
     echo "[2/3] Extracting ..."
-    pids=()
-    for corner in $CORNERS; do
-        (
-            if run_extract "$corner" "$l" "$l_next"; then
-                rm -f "$LOGDIR/ext_${corner}_L${l}.fail"
-            else
-                touch "$LOGDIR/ext_${corner}_L${l}.fail"
-            fi
-        ) &
-        pids+=($!)
-    done
-    for pid in "${pids[@]}"; do wait "$pid"; done
-    check_failure "ext" "$l"
+    $PYTHON extract.py $FINE --srcdir "$RAWDIR" --outdir "$MATDIR" \
+        --L-range "$l" "$l_next" --workers "$WORKERS" \
+        2>&1 | tee "$LOGDIR/ext_L${l}.log"
     echo "      Extraction OK"
 
     # --- 3. Clean raw for this L ---
