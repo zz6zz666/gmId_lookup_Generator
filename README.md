@@ -248,10 +248,9 @@ vgsUnknownSource = lookupVGS[data, "GM_ID", {10., 12., 15.},
   "VDB", .6, "VGB", 1., "L", .04];
 
 (* MapThread 参数按位置配对；原生 VDS 列表仍是笛卡尔维度 *)
-gain = MapThread[
-  lookup[data, "GM_GDS", "GM_ID", #1, "L", #2,
-    "VDS", {0.5, 0.7, 0.9}, "VSB", 0.] &,
-  {{8, 10, 12}, {0.04, 0.06, 0.08}}];
+gain = lookup[data, "GM_GDS", "GM_ID", #1, "L", #2,
+    "VDS", {0.5, 0.7, 0.9}, "VSB", 0] & ~MapThread~
+  {{8, 10, 12}, {0.04, 0.06, 0.08}};
 Dimensions[gain]                         (* {3, 3} = 配对维度 × VDS维度 *)
 ```
 

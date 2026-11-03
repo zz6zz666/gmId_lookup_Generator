@@ -285,14 +285,12 @@ With `MapThread`, the outer position is paired, while vectors inside each
 paired item remain Cartesian:
 
 ```wl
-result = MapThread[
-  lookupVGS[data, "GM_ID", #1, "L", #2, "VDS", #3] &,
+result = lookupVGS[data, "GM_ID", #1, "L", #2, "VDS", #3] & ~MapThread~
   {
     {{10., 12.}, {11., 15.}},
     {{.04, .06}, {.08, .1}},
     {{.5, .7}, {.6, .8}}
-  }
-];
+  };
 Dimensions[result]                         (* {2, 2, 2, 2} *)
 ```
 
@@ -325,34 +323,28 @@ lookupVGS[data, "GM_ID", 15., "L", #, "VDS", .7, "VSB", 0.] & /@
 Unknown-source paths are batched as separate path rows:
 
 ```wl
-MapThread[
-  lookupVGS[data, "GM_ID", {10., 12.},
-    "VDB", #1, "VGB", #2, "L", #3] &,
+lookupVGS[data, "GM_ID", {10., 12.},
+    "VDB", #1, "VGB", #2, "L", #3] & ~MapThread~
   {{.6, .7}, {1., 1.05}, {.04, .06}}
-]
 ```
 
 ### MapThread By Position
 
 ```wl
-MapThread[
-  lookup[data, "GM_GDS", "GM_ID", #1, "L", #2, "VDS", #3] &,
+lookup[data, "GM_GDS", "GM_ID", #1, "L", #2, "VDS", #3] & ~MapThread~
   {{8., 10., 12.}, {.04, .06, .08}, {.5, .7, .9}}
-]
 ```
 
 `MapThread` lists are paired by position. Lists contained inside one paired
 item remain ordinary lookup vectors and therefore retain Cartesian semantics:
 
 ```wl
-MapThread[
-  lookupVGS[data, "GM_ID", #1, "L", #2, "VDS", #3] &,
+lookupVGS[data, "GM_ID", #1, "L", #2, "VDS", #3] & ~MapThread~
   {
     {{10., 12.}, {11., 15.}},
     {{.04, .06}, {.08, .1}},
     {{.5, .7}, {.6, .8}}
   }
-]
 ```
 
 Each outer result in this example has dimensions `{L, VDS, target}`.
