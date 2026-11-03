@@ -4,7 +4,7 @@ import importlib
 import os, shutil, subprocess, sys, tempfile, time
 from multiprocessing import Pool
 
-from cli import pop_flag, pop_option, pop_range
+from cli import pop_option, pop_range
 from paths import PATHS
 
 # Process config, selected with CONFIG_MODULE (exported from machine.env by
@@ -16,20 +16,20 @@ write_netlist = _cfg.write_netlist
 
 
 def run_sim_corner(args):
-    corner, fine_flag, outdir, l_range = args
+    corner, outdir, l_range = args
     os.makedirs(PATHS['TMPDIR'], exist_ok=True)
     workdir = tempfile.mkdtemp(prefix='spec_work_', dir=PATHS['TMPDIR'])
     cwd0 = os.getcwd()
     os.chdir(workdir)
     try:
-        return _run_sim_corner(corner, fine_flag, outdir, l_range)
+        return _run_sim_corner(corner, outdir, l_range)
     finally:
         os.chdir(cwd0)
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def _run_sim_corner(corner, fine_flag, outdir, l_range):
-    c = get_config(corner, coarse=not fine_flag)
+def _run_sim_corner(corner, outdir, l_range):
+    c = get_config(corner)
 
     nL = len(c['LENGTH'])
     nVSB = len(c['VSB'])
@@ -85,20 +85,19 @@ def _run_sim_corner(corner, fine_flag, outdir, l_range):
 
 def main():
     args = sys.argv[1:]
-    fine = pop_flag(args, '--fine')
     outdir = pop_option(args, '--outdir')
     l_range = pop_range(args, '--L-range')
-    corners = args if args else get_config('tt', coarse=not fine)['corners']
+    corners = args if args else get_config('tt')['corners']
 
     if l_range is None:
-        c = get_config(corners[0], coarse=not fine)
+        c = get_config(corners[0])
         l_range = (0, len(c['LENGTH']))
 
     if outdir:
         print('Output dir:', outdir)
     t0 = time.time()
     with Pool(len(corners)) as pool:
-        results = pool.map(run_sim_corner, [(c, fine, outdir, l_range) for c in corners])
+        results = pool.map(run_sim_corner, [(c, outdir, l_range) for c in corners])
     failed = [corners[i] for i, r in enumerate(results) if not r]
     if failed:
         print('FAILED corners:', failed)

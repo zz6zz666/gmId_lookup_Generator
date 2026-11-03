@@ -1,4 +1,4 @@
-"""Machine-specific paths for the N40 gm/ID pipeline.
+"""Machine-specific paths for the gm/ID pipeline.
 
 Reads key=value pairs from ``machine.env`` in this directory (lines starting
 with ``#`` and empty lines ignored). Values may reference ``$HOME`` / other

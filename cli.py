@@ -1,22 +1,13 @@
 """Shared argv helpers for the pipeline entry points.
 
-run_sim.py and extract.py accept the same mix of bare flags (``--fine``),
-options (``--outdir DIR``), a two-value range (``--L-range START [END]``) and
-a trailing list of corner names.  Every ``main()`` used to re-implement the
-same "find index, pop name, pop value" dance; these helpers keep that
-behaviour in one place.
+run_sim.py and extract.py accept the same mix of options (``--outdir DIR``),
+a two-value range (``--L-range START [END]``) and a trailing list of corner
+names.  Every ``main()`` used to re-implement the same "find index, pop name,
+pop value" dance; these helpers keep that behaviour in one place.
 
 All helpers mutate the passed list in place, so the leftovers are exactly the
 corner names.
 """
-
-
-def pop_flag(args, name):
-    """Remove a bare flag from *args*; return True if it was present."""
-    if name in args:
-        args.remove(name)
-        return True
-    return False
 
 
 def pop_option(args, name, default=''):

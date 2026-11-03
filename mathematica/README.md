@@ -21,13 +21,13 @@ The API keeps the five usage modes distinct:
 
 ```wl
 Get["mathematica/lookup_table.wl"];
-data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5"];
+data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5"];
 ```
 
 The selective form loads only named datasets:
 
 ```wl
-data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5",
+data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5",
   {"L", "VGS", "VDS", "VSB", "GM", "ID", "CGG", "W"}];
 ```
 

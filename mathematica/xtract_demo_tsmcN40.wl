@@ -14,7 +14,7 @@ scriptDir = FileNameJoin[{dataDir, "mathematica"}];
 Get[FileNameJoin[{scriptDir, "lookup_table.wl"}]];
 Get[FileNameJoin[{scriptDir, "ekv_extract.wl"}]];
 
-nch = LoadLookupTable[FileNameJoin[{dataDir, "nch_tt.h5"}]];
+nch = LoadLookupTable[FileNameJoin[{dataDir, "tsmcN40_nch_tt.h5"}]];
 
 UT = 1.380649*^-23*300./1.602176634*^-19;   (* kT/q @300K *)
 L = 0.04; VDS = 0.55; VSB = 0.; rho = 0.6;   (* VDS=VDD/2 *)

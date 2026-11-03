@@ -74,7 +74,7 @@ def ekv_aint(dev, L, VDS, VGS, VSB=0.0, rho=0.6, TEMP=300.0):
 # ------------------------------------------------------------------
 # Load lookup table (adjust path to your installation if necessary)
 # ------------------------------------------------------------------
-nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
+nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
 
 # ------------------------------------------------------------------
 # Example: N40 core device  (L = 0.10 µm, VDS = 0.55 V, VSB = 0 V)

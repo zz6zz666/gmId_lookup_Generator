@@ -13,7 +13,7 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 .
 ├── config_common.py      # 与工艺无关的配置（变量表、netlist 模板、装配）
 ├── config_tsmcN40.py     # TSMC N40 工艺参数（轴 / 模型 / 器件尺寸）
-├── config_tsmc18.py      # TSMC 0.18µm 工艺参数（轴按参考 180nm 设置）
+├── config_tsmc18.py      # TSMC 0.18µm 工艺参数（轴 / 模型 / 器件尺寸）
 ├── run_sim.py            # Spectre 仿真（多工艺角并行）
 ├── extract.py            # 数据提取，生成 .h5 查找表
 ├── psf_reader.py         # PSF 格式仿真结果读取器
@@ -36,7 +36,7 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 └── README.md
 ```
 
-## 扫描网格（fine 模式）
+## 扫描网格
 
 两种工艺的参考器件相同：**W = 10 µm（2 µm/指 × 5 指）**，网表参数为
 `w=2e-6 m=5`，数据按总宽 10 µm 归一化；每个文件包含 18 个变量（16 DC + 2 噪声）。
@@ -45,20 +45,20 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 
 | 参数       | 值 |
 | ---------- | --- |
-| 工艺 / 器件 | TSMC N40 (CRN40LP)，1.1 V 核心器件，BSIM4，nch / pch |
+| 工艺 / 器件 | TSMC N40 (CRN40LP)，1.1 V 核心器件，BSIM4，nch / pch（`crn40lp_2d5_v2d0_2.scs`） |
 | VGS        | 0 ~ 1.1 V，步长 0.02 → 56 点 |
 | VDS        | 0 ~ 1.1 V，步长 0.02 → 56 点 |
 | VSB        | 0 ~ 0.8 V，步长 0.1 → 9 点 |
 | L          | 0.04 ~ 2 µm → 44 点（0.04~0.14 步 0.01；0.16~0.50 步 0.02；0.55~1.00 步 0.05；1.20~2.00 步 0.20） |
 | 单变量网格 | 44 × 56 × 56 × 9 = 1,241,856 点，维度顺序 (L, VGS, VDS, VSB) |
 | 工艺角     | `tt ff ss fs sf` |
-| 输出文件   | `nch_<corner>.h5` / `pch_<corner>.h5`，共 10 个 |
+| 输出文件   | `tsmcN40_nch_<corner>.h5` / `tsmcN40_pch_<corner>.h5`，共 10 个 |
 
 ### TSMC 0.18 µm — `config_tsmc18.py`
 
 | 参数       | 值 |
 | ---------- | --- |
-| 工艺 / 器件 | TSMC 0.18 µm (tsmc18)，1.8 V 器件，BSIM4，nch / pch |
+| 工艺 / 器件 | TSMC 0.18 µm BCD Gen II (tsmc18)，1.8 V 核心器件，BSIM4，nch / pch（`c018bcd_gen2_v1d6.scs`） |
 | VGS        | 0 ~ 1.8 V，步长 0.025 → 73 点 |
 | VDS        | 0 ~ 1.8 V，步长 0.025 → 73 点 |
 | VSB        | 0 ~ 1.0 V，步长 0.1 → 11 点 |
@@ -68,12 +68,15 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 | 输出文件   | `tsmc18_nch_<corner>.h5` / `tsmc18_pch_<corner>.h5`，共 10 个 |
 
 tsmc18 的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`；参考器件尺寸由
-该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。
+该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。工艺角段（`tt ss ff sf fs`）内部
+`include ... section=mos` 引入器件模型，但参数块引用了闪烁噪声的统计量，所以
+`SECTIONS` 为 `['stat_noise', '{corner}']`：先包含 `stat_noise`（标称仿真下这些
+统计量为 0），再包含对应工艺角。
 
 ## 存储格式（.h5，HDF5）
 
-- 每个文件对应一个器件与工艺角的组合，如 `nch_tt.h5`、`pch_tt.h5`；tsmc18 的表
-  文件名带 `tsmc18_` 前缀（`tsmc18_nch_tt.h5`），可与 N40 表共存于同一目录。
+- 每个文件对应一个器件与工艺角的组合，如 `tsmcN40_nch_tt.h5`、`tsmc18_nch_tt.h5`；
+  两种工艺的输出文件名都带各自的工艺前缀，可共存于同一目录。
 - 4-D 数据数组 `(L, VGS, VDS, VSB)`，
   **float32 + gzip(level 6) + shuffle**，chunk = 一个 L 的整片 `(1, VGS, VDS, VSB)`。
 - 元数据存为标量/字符串数据集：`CORNER DEVICE INFO TEMP W NFING`。
@@ -89,12 +92,14 @@ tsmc18 网格更大，单文件约 65–70 MB，合计约 0.7 GB。
 
 工艺文件定义该工艺的参数：`TAG`（临时文件名中的工艺标签）、`INFO`（写入 .h5 的
 描述）、`SECTIONS`、`CORNERS`、`TEMP`、`VDD`、`VSB_MAX`、`WIDTH` / `NFING`，
-以及 `COARSE` / `FINE` 两套网格。netlist 模板、存储变量表与 PSF 信号映射位于
-`config_common.py`。
+以及扫描步长（`VGS_STEP` / `VDS_STEP` / `VSB_STEP`）与 `LENGTH` 网格。netlist
+模板、存储变量表与 PSF 信号映射位于 `config_common.py`。
 
-- **模型文件**：路径由 `machine.env` 的 `PDK_MODEL_FILE` 指定。`SECTIONS` 为空时
-  直接 `include "..."`；`'stat'`、`'global'`、`'{corner}'` 等条目展开为
-  `include "..." section=...`（N40 模型卡使用 `stat` / `global` / 工艺角三段）。
+- **模型文件**：路径由 `machine.env` 的 `PDK_MODEL_FILE` 指定，两种工艺各用一张
+  模型卡（N40：`crn40lp_2d5_v2d0_2.scs`；tsmc18：`c018bcd_gen2_v1d6.scs`）。
+  `SECTIONS` 为空时直接 `include "..."`；`'stat'`、`'global'`、`'{corner}'` 等条目
+  展开为 `include "..." section=...`。N40 取 `['stat', 'global', '{corner}']`；
+  tsmc18 取 `['stat_noise', '{corner}']`。
 - **工艺角**：由 `CORNERS` 定义，`pipeline.sh`、`run_sim.py`、`extract.py` 均从
   配置读取。
 - **Spectre**：`machine.env` 中的 `SPECTRE_BIN`（默认 `/opt/eda/cadence/SPECTRE181/tools.lnx86/bin/spectre`）。
@@ -144,6 +149,9 @@ Python 经 `paths.py` 读取，`pipeline.sh` 经 `source machine.env` 读取，�
 （默认 `$HOME/venvs/gmId313/bin/python`）；未安装 psf-parser 时 `psf_reader.py`
 回退到 ASCII 解析（速度较慢，且要求 `rawfmt=psfascii`）。
 
+下文的 `D:\tsmcN40_lookup\`、`D:\tsmc18_lookup\` 只是示例，说明脚本与查找表可以
+放在这样的目录里；实际输出位置由 `MATDIR` 决定。
+
 ## 快速开始
 
 ### 1. 配置 machine.env
@@ -169,14 +177,14 @@ bash pipeline.sh
 
 ```bash
 # Step 1 — 扫描仿真（指定 corner 和输出目录）
-$PYTHON_BIN run_sim.py tt --fine --outdir "$RAWDIR"
+$PYTHON_BIN run_sim.py tt --outdir "$RAWDIR"
 
 # Step 2 — 数据提取
-$PYTHON_BIN extract.py --fine --srcdir "$RAWDIR" --outdir "$MATDIR" --workers 5
+$PYTHON_BIN extract.py --srcdir "$RAWDIR" --outdir "$MATDIR" --workers 5
 
 # Step 3 — 使用查找表 API（示例见下文"Python 使用"）
 from lookup_funs.lookup_table import loadmat, lookup, lookupVGS
-nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
+nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
 ```
 
 ### 4. 切换工艺 / 新增工艺
@@ -190,13 +198,13 @@ CONFIG_MODULE=config_tsmc18 bash pipeline.sh
 # 或写入 machine.env：CONFIG_MODULE=config_tsmc18
 ```
 
-同时将 `PDK_MODEL_FILE` 指向该工艺的模型卡；`MATDIR` 建议按工艺分目录。tsmc18 的
-表文件名带 `tsmc18_` 前缀，与 N40 表共用目录时不会冲突。
+同时将 `PDK_MODEL_FILE` 指向该工艺的模型卡；`MATDIR` 建议按工艺分目录。两种工艺
+的输出文件名都带工艺前缀（`tsmcN40_` / `tsmc18_`），共用目录时不会冲突。
 
 两种工艺的扫描网格见「扫描网格」一节。
 
 新增工艺：复制 `config_tsmc18.py`，修改 `TAG`、`INFO`、`SECTIONS`、`CORNERS`、
-`VDD`、`VSB_MAX`、`WIDTH`、`NFING` 与 `FINE` 轴；`run_sim.py`、`extract.py`、
+`VDD`、`VSB_MAX`、`WIDTH`、`NFING`、步长与 `LENGTH`；`run_sim.py`、`extract.py`、
 `pipeline.sh` 无需修改。
 
 ## Python 使用
@@ -207,8 +215,8 @@ CONFIG_MODULE=config_tsmc18 bash pipeline.sh
 ```python
 from lookup_funs.lookup_table import loadmat, lookup, lookupVGS
 
-nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
-pch = loadmat(r"D:\tsmcN40_lookup\pch_tt.h5")
+nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
+pch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_pch_tt.h5")
 
 gm_id = lookup(nch, 'GM_ID', 'VGS', 0.6, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)     # 查表
 VGS   = lookupVGS(nch, 'GM_ID', 15, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)          # 反查 VGS
@@ -230,7 +238,7 @@ HDF5 文件可由 Mathematica `Import` 直接读取，见 `mathematica/lookup_ta
 
 ```mathematica
 << "mathematica/lookup_table.wl"
-data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5"];
+data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5"];
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];
 wt = lookup[data, "GM_CGG", "GM_ID", {5, 10, 15}, "VDS", 0.7, "L", 0.1];
@@ -278,5 +286,3 @@ Dimensions[gain]                         (* {3, 3} = 配对维度 × VDS维度 *
 - 新增工艺：复制 `config_tsmc18.py` 并修改参数，将 `machine.env` 的
   `CONFIG_MODULE` / `PDK_MODEL_FILE` 指向新工艺；`run_sim.py`、`extract.py`、
   `pipeline.sh` 与两套查表 API 均无需修改。
-- 扩展 N40 的 2.5 V IO（nch_25 / pch_25）或 LVT / HVT 时，在 `config_tsmcN40.py`
-  中增加 device 分组。

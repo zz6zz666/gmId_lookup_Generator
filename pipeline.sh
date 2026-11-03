@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
-# L-level pipeline: simulate -> extract -> delete for TSMC N40 (CRN40LP)
-# 1.1V core devices (nch / pch).
+# L-level pipeline: simulate -> extract -> delete, for the process selected by
+# CONFIG_MODULE (config_<proc>.py).
 #
 # One L point at a time: run_sim.py simulates all corners in parallel (one
 # worker per corner), extract.py extracts them in parallel, then that L's raw
@@ -35,7 +35,6 @@ set +a
 : "${TMPDIR:?machine.env must set TMPDIR (spectre work dirs)}"
 
 PYTHON="$PYTHON_BIN"
-FINE="--fine"
 # Process config module; set CONFIG_MODULE in machine.env to switch process.
 CONFIG_MODULE="${CONFIG_MODULE:-config_tsmcN40}"
 export CONFIG_MODULE
@@ -77,7 +76,7 @@ clean_l() {
 
 # ----- Main ------------------------------------------------------------------
 echo "========================================"
-echo "Pipeline: process config $CONFIG_MODULE, corners x nL, fine mode"
+echo "Pipeline: process config $CONFIG_MODULE, corners x nL"
 echo "Script:  $SCRIPTDIR"
 echo "Raw:     $RAWDIR"
 echo "MAT:     $MATDIR"
@@ -89,7 +88,7 @@ cleanup_stale
 
 cd "$SCRIPTDIR"
 # L count comes from the same config the simulators read (no duplicated grid).
-nL=$($PYTHON "$CONFIG_MODULE.py" $FINE | tail -n1)
+nL=$($PYTHON "$CONFIG_MODULE.py" | tail -n1)
 
 echo "[*] Total L count: $nL"
 echo ""
@@ -104,13 +103,13 @@ for l in $(seq 0 $((nL - 1))); do
 
     # --- 1. Simulation (all corners in parallel inside run_sim.py) ---
     echo "[1/3] Simulating ..."
-    $PYTHON run_sim.py $FINE --outdir "$RAWDIR" --L-range "$l" "$l_next" \
+    $PYTHON run_sim.py --outdir "$RAWDIR" --L-range "$l" "$l_next" \
         2>&1 | tee "$LOGDIR/sim_L${l}.log"
     echo "      Simulation OK"
 
     # --- 2. Extraction (all corners in parallel inside extract.py) ---
     echo "[2/3] Extracting ..."
-    $PYTHON extract.py $FINE --srcdir "$RAWDIR" --outdir "$MATDIR" \
+    $PYTHON extract.py --srcdir "$RAWDIR" --outdir "$MATDIR" \
         --L-range "$l" "$l_next" --workers "$WORKERS" \
         2>&1 | tee "$LOGDIR/ext_L${l}.log"
     echo "      Extraction OK"

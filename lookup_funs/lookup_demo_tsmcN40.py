@@ -20,7 +20,7 @@ from lookup_table import loadmat, lookup
 # ------------------------------------------------------------------
 # Load data
 # ------------------------------------------------------------------
-nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
+nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
 
 VDS = 0.55
 VSB = 0

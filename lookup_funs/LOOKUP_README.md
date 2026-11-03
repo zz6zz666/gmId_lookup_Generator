@@ -1,50 +1,60 @@
-# TSMC N40 查找表使用指南
+# 查找表使用指南
 
 ## 1. 查找表文件（.h5）
 
-由 `extract.py` 生成，HDF5 格式，一个文件 = 器件 + 工艺角：
+由 `extract.py` 生成，HDF5 格式，一个文件 = 工艺 + 器件 + 工艺角，文件名带工艺前缀。
+输出目录由 `machine.env` 的 `MATDIR` 决定，下面以本机习惯的路径为例：
 
 ```text
 D:\tsmcN40_lookup\
-├── nch_tt.h5      (nch, typical corner)
-├── nch_ff.h5      (nch, fast corner)
-├── nch_fs.h5
-├── nch_sf.h5
-├── nch_ss.h5
-├── pch_tt.h5
-├── pch_ff.h5
-├── pch_fs.h5
-├── pch_sf.h5
-└── pch_ss.h5
+├── tsmcN40_nch_tt.h5      (N40, nch, typical corner)
+├── tsmcN40_nch_ff.h5
+├── tsmcN40_nch_fs.h5
+├── tsmcN40_nch_sf.h5
+├── tsmcN40_nch_ss.h5
+├── tsmcN40_pch_tt.h5
+└── ...
+
+D:\tsmc18_lookup\
+├── tsmc18_nch_tt.h5       (0.18 µm, nch, typical corner)
+├── tsmc18_nch_ff.h5
+├── tsmc18_nch_fs.h5
+├── tsmc18_nch_sf.h5
+├── tsmc18_nch_ss.h5
+├── tsmc18_pch_tt.h5
+└── ...
 ```
 
-正常设计使用 `tt` corner。所有查表值都以**参考宽度归一化**：元数据 W = 10 µm。
+每种工艺 10 个文件（nch / pch × tt / ff / ss / fs / sf）。正常设计使用 `tt` corner。
+所有查表值都以**参考宽度归一化**：元数据 W = 10 µm（2 µm/指 × 5 指）。
 
-## 2. 工艺参数概览（fine 模式）
+## 2. 工艺参数概览
 
-| 参数           | 数值                                             |
-| -------------- | ------------------------------------------------ |
-| **电源电压**   | **1.1 V**（核心器件）                            |
-| **默认 VDS**   | **0.55 V**（VDD/2）                              |
-| **默认 VSB**   | 0 V                                              |
-| VGS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）                 |
-| VDS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）                 |
-| VSB 范围       | 0 ~ 0.8 V，步长 0.1 V（9 点）        |
-| L 范围         | 0.04 ~ 2 µm（44 点），详细值见下方               |
-| 仿真宽度 W     | 10 µm                                        |
-| 单变量网格     | 44 × 56 × 56 × 9（(L, VGS, VDS, VSB)）= 1,241,856 点 |
+| 参数           | TSMC N40                                      | TSMC 0.18 µm (tsmc18)                        |
+| -------------- | --------------------------------------------- | -------------------------------------------- |
+| **电源电压**   | **1.1 V**（核心器件）                         | **1.8 V**（核心器件）                        |
+| **默认 VDS**   | **0.55 V**（VDD/2）                           | **0.9 V**（VDD/2）                           |
+| **默认 VSB**   | 0 V                                           | 0 V                                          |
+| VGS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）               | 0 ~ 1.8 V，步长 0.025 V（73 点）             |
+| VDS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）               | 0 ~ 1.8 V，步长 0.025 V（73 点）             |
+| VSB 范围       | 0 ~ 0.8 V，步长 0.1 V（9 点）                 | 0 ~ 1.0 V，步长 0.1 V（11 点）               |
+| L 范围         | 0.04 ~ 2 µm（44 点），详细值见下方            | 0.18 ~ 2 µm（32 点），详细值见下方           |
+| 仿真宽度 W     | 10 µm                                         | 10 µm                                        |
+| 单变量网格     | 44 × 56 × 56 × 9 = 1,241,856 点               | 32 × 73 × 73 × 11 = 1,875,808 点             |
 
-**L 详细值（44 点）**：
+维度顺序均为 `(L, VGS, VDS, VSB)`。
 
-- 0.04 ~ 0.14（步长 0.01）：`0.04 ... 0.14`
-- 0.16 ~ 0.50（步长 0.02）：`0.16 ... 0.50`
-- 0.55 ~ 1.00（步长 0.05）：`0.55 ... 1.00`
-- 1.2, 1.4, 1.6, 1.8, 2.0
+**L 详细值**：
+
+- N40（44 点）：0.04 ~ 0.14（步长 0.01）；0.16 ~ 0.50（步长 0.02）；
+  0.55 ~ 1.00（步长 0.05）；1.2, 1.4, 1.6, 1.8, 2.0
+- tsmc18（32 点）：0.18 ~ 0.50（步长 0.02）；0.60 ~ 2.00（步长 0.10）
 
 ## 3. 数据结构
 
 - 4-D 数据数组 `(L, VGS, VDS, VSB)`（与官方 Murmann 查找表布局一致），float32 + gzip 压缩。
 - 变量：`ID VT IGD IGS GM GMB GDS CGG CGS CSG CGD CDG CGB CDD CSS VDSAT`，外加噪声 `STH SFL`。
+  tsmc18 的模型不含栅电流（模型卡 `igcmod=0`），其 `IGD` / `IGS` 列恒为 0。
 - 元数据数据集：`CORNER DEVICE INFO TEMP W NFING`。
 - 坐标轴数据集：`L VGS VDS VSB`。
 - 其余比例量（如 `GM_CGG = GM/CGG`、`GM_GDS = GM/GDS`、`ID_W = ID/W`）由原始量现算。
@@ -55,8 +65,8 @@ D:\tsmcN40_lookup\
 ```python
 from lookup_table import loadmat, lookup, lookupVGS
 
-nch = loadmat(r"D:\tsmcN40_lookup\nch_tt.h5")
-pch = loadmat(r"D:\tsmcN40_lookup\pch_tt.h5")
+nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
+pch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_pch_tt.h5")
 
 # 基础查表
 gm_id = lookup(nch, 'GM_ID', 'VGS', 0.6, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
@@ -70,7 +80,8 @@ VGS = lookupVGS(nch, 'GM_ID', 15, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
 wt = lookup(nch, 'GM_CGG', 'GM_ID', [5, 10, 15], 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
 ```
 
-> pch 文件同样使用**正电压域**（|VSG|、|VSD|）查询，与 nch 一致。
+> 两种工艺的表格接口相同；换工艺只需换文件（如 `tsmc18_nch_tt.h5`），查询参数按各自的
+> VDD / L 网格取值。pch 文件同样使用**正电压域**（|VSG|、|VSD|）查询，与 nch 一致。
 
 ### 附录缺省值
 
@@ -104,7 +115,7 @@ Mathematica API 与附录及本项目 Python API 保持相同的函数划分和�
 
 ```mathematica
 << "mathematica/lookup_table.wl";
-data = LoadLookupTable["D:\\tsmcN40_lookup\\nch_tt.h5"];
+data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5"];
 
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];

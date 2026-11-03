@@ -13,12 +13,12 @@ dataDir = "D:\\tsmcN40_lookup";
 scriptDir = FileNameJoin[{dataDir, "mathematica"}];
 Get[FileNameJoin[{scriptDir, "lookup_table.wl"}]];
 
-nch[corner_] := LoadLookupTable[FileNameJoin[{dataDir, "nch_" <> corner <> ".h5"}]];
+nch[corner_] := LoadLookupTable[FileNameJoin[{dataDir, "tsmcN40_nch_" <> corner <> ".h5"}]];
 nchGMID[corner_] := LoadLookupTable[
-  FileNameJoin[{dataDir, "nch_" <> corner <> ".h5"}],
+  FileNameJoin[{dataDir, "tsmcN40_nch_" <> corner <> ".h5"}],
   {"CORNER", "DEVICE", "INFO", "TEMP", "W", "NFING", "L", "VGS", "VDS",
     "VSB", "GM", "ID"}];
-pch[corner_] := LoadLookupTable[FileNameJoin[{dataDir, "pch_" <> corner <> ".h5"}]];
+pch[corner_] := LoadLookupTable[FileNameJoin[{dataDir, "tsmcN40_pch_" <> corner <> ".h5"}]];
 
 tt = nch["tt"];
 corners = {"tt", "ff", "ss", "fs", "sf"};

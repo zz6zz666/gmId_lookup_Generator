@@ -1,7 +1,7 @@
 """Process-independent lookup-table configuration.
 
 Everything in this module is shared by the per-process config modules
-(``config_tsmcN40.py``, ``config_180nm.py``, ...):
+(``config_tsmcN40.py``, ``config_tsmc18.py``, ...):
 
 * the stored variable list and the Spectre signal -> variable mapping,
 * the Spectre netlist template,
@@ -127,7 +127,7 @@ def build_config(corner, *, tag, info, sections, modeln, modelp, temp,
     Parameters
     ----------
     corner : str
-        Corner label, also used in file names (``nch_tt.h5``).
+        Corner label, also used in file names (``tsmcN40_nch_tt.h5``).
     tag : str
         Short process tag used in transient file names
         (``techsweep_<tag>_<corner>.scs``, ``raw_<tag>_<corner>``).
@@ -222,11 +222,6 @@ def write_netlist(c, raw_dir):
     return netlist_file
 
 
-def print_length_count(get_config, argv=None):
-    """Print the number of L points; ``python config_<proc>.py [--fine]``."""
-    import sys
-
-    argv = sys.argv[1:] if argv is None else list(argv)
-    args = [a for a in argv if a != '--fine']
-    print(len(get_config(args[0] if args else 'tt',
-                         coarse='--fine' not in argv)['LENGTH']))
+def print_length_count(get_config):
+    """Print the number of L points; ``python config_<proc>.py``."""
+    print(len(get_config('tt')['LENGTH']))

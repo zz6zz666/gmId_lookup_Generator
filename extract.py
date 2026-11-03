@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Extraction script for TSMC N40 (CRN40LP) 1.1V core devices.
-Produces .h5 lookup tables.
+Extraction script: raw PSF sweeps -> .h5 lookup tables.
+The process (device names, sweep axes, file prefix) is selected by
+CONFIG_MODULE, so this file is process-independent.
 
 Storage format:
-  - HDF5 container, one file per device+corner (e.g. nch_tt.h5)
+  - HDF5 container, one file per device+corner (e.g. tsmcN40_nch_tt.h5)
   - 4-D variable arrays (L, VGS, VDS, VSB) stored as float32 with gzip
     compression + chunking (per-L chunks).  Axis order matches the official
     Murmann lookup table layout (L, VGS, VDS, VSB).
@@ -16,21 +17,21 @@ Storage format:
     stored; the lookup API recomputes them on the fly from the primitives.
 
 Usage:
-  # Full extraction (raw PSF in $RAWDIR, tables written to --outdir)
-  python extract.py --fine --outdir <path> --workers 5
+  # Full extraction (raw PSF in --srcdir, tables written to --outdir)
+  python extract.py --outdir <path> --workers 5
 
   # Incremental: only L range
-  python extract.py --fine --outdir <path> --L-range 0 5 --workers 5
+  python extract.py --outdir <path> --L-range 0 5 --workers 5
 
   # Append to existing .h5
-  python extract.py --fine --outdir <path> --L-range 9 13 --workers 5
+  python extract.py --outdir <path> --L-range 9 13 --workers 5
 """
 import time, sys, os, numpy as np
 import h5py
 import importlib
 from multiprocessing import Pool
 
-from cli import pop_flag, pop_int_option, pop_option, pop_range
+from cli import pop_int_option, pop_option, pop_range
 
 # Process config, selected with CONFIG_MODULE (default: TSMC N40).
 _cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN40'))
@@ -148,8 +149,8 @@ def make_mat_data(c, L_arr, device):
     return d
 
 
-def extract_corner(corner, fine, outdir, l_range, srcdir=None):
-    c = get_config(corner, coarse=not fine)
+def extract_corner(corner, outdir, l_range, srcdir=None):
+    c = get_config(corner)
     nVGS = len(c['VGS'])
     nVDS = len(c['VDS'])
     nVSB = len(c['VSB'])
@@ -289,23 +290,22 @@ def _worker(args):
 
 def main():
     args = sys.argv[1:]
-    fine = pop_flag(args, '--fine')
     outdir = pop_option(args, '--outdir')
     srcdir = pop_option(args, '--srcdir')
     l_range = pop_range(args, '--L-range')
     workers = pop_int_option(args, '--workers', 1)
-    corners = args if args else get_config('tt', coarse=not fine)['corners']
+    corners = args if args else get_config('tt')['corners']
 
     if l_range is None:
-        c0 = get_config(corners[0], coarse=not fine)
+        c0 = get_config(corners[0])
         l_range = (0, len(c0['LENGTH']))
 
-    print('Fine: %s  Outdir: %s  Srcdir: %s  Workers: %d  L-range: %d-%d' %
-          (fine, outdir if outdir else '.', srcdir if srcdir else '(same)', workers,
+    print('Outdir: %s  Srcdir: %s  Workers: %d  L-range: %d-%d' %
+          (outdir if outdir else '.', srcdir if srcdir else '(same)', workers,
            l_range[0], l_range[1] - 1))
 
     t0 = time.time()
-    tasks = [(c, fine, outdir, l_range, srcdir if srcdir else None) for c in corners]
+    tasks = [(c, outdir, l_range, srcdir if srcdir else None) for c in corners]
 
     if workers <= 1:
         results = [_worker(t) for t in tasks]
