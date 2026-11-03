@@ -1,5 +1,5 @@
 """
-EKV parameter extraction demo (Appendix A.1).
+EKV parameter extraction demo for the TSMC N40 tables (Appendix A.1).
 Reproduces the key figures from Section A.1.4:
     - (a) Drain current density  : original vs. reconstructed
     - (b) Transconductance efficiency : original vs. reconstructed
@@ -7,7 +7,7 @@ Reproduces the key figures from Section A.1.4:
 
 Usage
 -----
-    python xtract_demo.py
+    python xtract_demo_tsmcN40.py
 
 The script assumes that a TSMC N40 lookup table (.h5) is available;
 adjust the ``loadmat`` path below.

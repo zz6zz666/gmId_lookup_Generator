@@ -1,7 +1,7 @@
 (* ::Package:: *)
 
 (* =====================================================================
-   lookup_demo.wl  \[LongDash]  lookup-table plots
+   lookup_demo_tsmcN40.wl  \[LongDash]  TSMC N40 lookup-table plots
    \:4f7f\:7528\:524d\:5148\:8fd0\:884c 0 \:53f7 Setup cell\:ff1b\:5404\:8282\:53ef\:5355\:72ec\:590d\:5236\:5230 Notebook \:4e2d\:8fd0\:884c\:3002
    \:6570\:636e\:4f4d\:7f6e: D:\tsmcN40_lookup\*.h5  (10 \:4e2a: nch/pch x tt/ff/ss/fs/sf)
    ===================================================================== *)
