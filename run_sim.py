@@ -10,7 +10,7 @@ from paths import PATHS
 # Process config, selected with CONFIG_MODULE (exported from machine.env by
 # pipeline.sh).  The child processes of the Pool inherit the environment, so
 # they resolve the same module.
-_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN40'))
+_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN65'))
 get_config = _cfg.get_config
 write_netlist = _cfg.write_netlist
 

@@ -1,9 +1,9 @@
-# gm/ID 查找表生成（TSMC N40 / tsmc18）
+# gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
 
-面向 TSMC N40 1.1 V 核心器件和 TSMC 0.18 µm (tsmc18) 器件的
-nch / pch gm/ID 查找表生成工具集：Spectre 扫描仿真 + 数据提取，输出
-HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代码，通过
-`config_<proc>.py` 区分扫描网格与模型卡。
+面向 TSMC 65 nm LP 1.2 V 核心器件、TSMC 40 nm LP 1.1 V 核心器件和
+TSMC 0.18 µm (tsmc18) 1.8 V 核心器件的 nch / pch gm/ID 查找表生成工具集：
+Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工艺共用同一套
+仿真、提取与查询代码，通过 `config_<proc>.py` 区分扫描网格与模型卡。
 
 ---
 
@@ -12,7 +12,8 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 ```
 .
 ├── config_common.py      # 与工艺无关的配置（变量表、netlist 模板、装配）
-├── config_tsmcN40.py     # TSMC N40 工艺参数（轴 / 模型 / 器件尺寸）
+├── config_tsmcN65.py     # TSMC 65 nm 工艺参数（轴 / 模型 / 器件尺寸）
+├── config_tsmcN40.py     # TSMC 40 nm 工艺参数（轴 / 模型 / 器件尺寸）
 ├── config_tsmc18.py      # TSMC 0.18µm 工艺参数（轴 / 模型 / 器件尺寸）
 ├── run_sim.py            # Spectre 仿真（多工艺角并行）
 ├── extract.py            # 数据提取，生成 .h5 查找表
@@ -24,28 +25,62 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 ├── lookup_funs/          # Python 查找表查询 API、EKV 提取与示例
 │   ├── lookup_table.py
 │   ├── ekv_extract.py
+│   ├── lookup_demo_tsmcN65.py
 │   ├── lookup_demo_tsmcN40.py
+│   ├── lookup_demo_tsmc18.py
+│   ├── xtract_demo_tsmcN65.py
 │   ├── xtract_demo_tsmcN40.py
+│   ├── xtract_demo_tsmc18.py
 │   └── LOOKUP_README.md
 ├── mathematica/          # Mathematica 加载 / 插值脚本与示例
 │   ├── lookup_table.wl
 │   ├── ekv_extract.wl
+│   ├── lookup_demo_tsmcN65.wl
 │   ├── lookup_demo_tsmcN40.wl
+│   ├── lookup_demo_tsmc18.wl
+│   ├── xtract_demo_tsmcN65.wl
 │   ├── xtract_demo_tsmcN40.wl
+│   ├── xtract_demo_tsmc18.wl
 │   └── README.md
 └── README.md
 ```
 
+示例脚本按工艺各一套（`<proc>` = `tsmcN65` / `tsmcN40` / `tsmc18`）：
+
+- `lookup_demo_<proc>.{py,wl}`：3×3 张常用 gm/ID 设计图（`ID/W`、`gm/ID`、`VT`、
+  `fT`、固有增益、`VDSAT`、`Cgg/W`、`Cgd/Cgg`），固定 VDS = VDD/2、VSB = 0，扫 VGS；
+- `xtract_demo_<proc>.{py,wl}`：用 `XTRACT` 提取 n/VT/JS 及其对 VDS 的导数，重建
+  `JD`、`gm/ID`、`gds`、固有增益，并与查找表数据对比。
+
+脚本中的表路径（如 `D:\tsmcN65_lookup\...`）按实际 `MATDIR` 修改即可。
+
 ## 扫描网格
 
-两种工艺的参考器件相同：**W = 10 µm（2 µm/指 × 5 指）**，网表参数为
+三种工艺的参考器件相同：**W = 10 µm（2 µm/指 × 5 指）**，网表参数为
 `w=2e-6 m=5`，数据按总宽 10 µm 归一化；每个文件包含 18 个变量（16 DC + 2 噪声）。
 
-### TSMC N40 — `config_tsmcN40.py`
+### TSMC 65 nm — `config_tsmcN65.py`
 
 | 参数       | 值 |
 | ---------- | --- |
-| 工艺 / 器件 | TSMC N40 (CRN40LP)，1.1 V 核心器件，BSIM4，nch / pch（`crn40lp_2d5_v2d0_2.scs`） |
+| 工艺 / 器件 | TSMC 65 nm LP (CRN65LP)，1.2 V 核心器件，BSIM4，nch / pch（`crn65lp_2d5_lk_v1d7.scs`） |
+| VGS        | 0 ~ 1.2 V，步长 0.02 → 61 点 |
+| VDS        | 0 ~ 1.2 V，步长 0.02 → 61 点 |
+| VSB        | 0 ~ 0.8 V，步长 0.1 → 9 点 |
+| L          | 0.06 ~ 2 µm → 41 点（0.06~0.20 步 0.01；0.25~1.00 步 0.05；1.10~2.00 步 0.10） |
+| 单变量网格 | 41 × 61 × 61 × 9 = 1,373,049 点，维度顺序 (L, VGS, VDS, VSB) |
+| 工艺角     | `tt ff ss fs sf` |
+| 输出文件   | `tsmcN65_nch_<corner>.h5` / `tsmcN65_pch_<corner>.h5`，共 10 个 |
+
+偏置轴取自 `techsweep_config_psp_65_spectre.m`（0 ~ VDD、25 mV），这里把 VGS/VDS
+步长收紧到 20 mV（与 40 nm 的做法一致，步长对应 61 点）；L 轴保留该配置
+0.06~1 µm 的分段并在其后续接到 2 µm。
+
+### TSMC 40 nm — `config_tsmcN40.py`
+
+| 参数       | 值 |
+| ---------- | --- |
+| 工艺 / 器件 | TSMC 40 nm LP (CRN40LP)，1.1 V 核心器件，BSIM4，nch / pch（`crn40lp_2d5_v2d0_2.scs`） |
 | VGS        | 0 ~ 1.1 V，步长 0.02 → 56 点 |
 | VDS        | 0 ~ 1.1 V，步长 0.02 → 56 点 |
 | VSB        | 0 ~ 0.8 V，步长 0.1 → 9 点 |
@@ -58,7 +93,7 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 
 | 参数       | 值 |
 | ---------- | --- |
-| 工艺 / 器件 | TSMC 0.18 µm BCD Gen II (tsmc18)，1.8 V 核心器件，BSIM4，nch / pch（`c018bcd_gen2_v1d6.scs`） |
+| 工艺 / 器件 | TSMC 0.18 µm 混合信号 GPII-A (tsmc18)，1.8 V 核心器件，BSIM4，nch / pch（`cmn018_gp2a_5v_v1d4.scs`） |
 | VGS        | 0 ~ 1.8 V，步长 0.025 → 73 点 |
 | VDS        | 0 ~ 1.8 V，步长 0.025 → 73 点 |
 | VSB        | 0 ~ 1.0 V，步长 0.1 → 11 点 |
@@ -68,15 +103,17 @@ HDF5（.h5）查找表。两种工艺共用同一套仿真、提取与查询代�
 | 输出文件   | `tsmc18_nch_<corner>.h5` / `tsmc18_pch_<corner>.h5`，共 10 个 |
 
 tsmc18 的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`；参考器件尺寸由
-该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。工艺角段（`tt ss ff sf fs`）内部
-`include ... section=mos` 引入器件模型，但参数块引用了闪烁噪声的统计量，所以
-`SECTIONS` 为 `['stat_noise', '{corner}']`：先包含 `stat_noise`（标称仿真下这些
-统计量为 0），再包含对应工艺角。
+该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。该模型卡的工艺角段（`tt ss ff sf fs`）
+自身 `include ... section=setup` 与 `section=mos`，所以 `SECTIONS` 只需 `['{corner}']`。
+
+65 nm 模型卡则相反：工艺角段引用了闪烁噪声的统计量（`par1fn_mc` 等），
+`SECTIONS` 必须为 `['stat_noise', '{corner}']` —— 先包含 `stat_noise`（标称仿真下
+这些统计量为 0），再包含对应工艺角；否则 Spectre 报 `unknown parameter 'par1fn_mc'`。
 
 ## 存储格式（.h5，HDF5）
 
-- 每个文件对应一个器件与工艺角的组合，如 `tsmcN40_nch_tt.h5`、`tsmc18_nch_tt.h5`；
-  两种工艺的输出文件名都带各自的工艺前缀，可共存于同一目录。
+- 每个文件对应一个器件与工艺角的组合，如 `tsmcN65_nch_tt.h5`、`tsmc18_nch_tt.h5`；
+  三种工艺的输出文件名都带各自的工艺前缀，可共存于同一目录。
 - 4-D 数据数组 `(L, VGS, VDS, VSB)`，
   **float32 + gzip(level 6) + shuffle**，chunk = 一个 L 的整片 `(1, VGS, VDS, VSB)`。
 - 元数据存为标量/字符串数据集：`CORNER DEVICE INFO TEMP W NFING`。
@@ -85,8 +122,8 @@ tsmc18 的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`；参考�
   `VDSAT`=BSIM 饱和电压，唯一存储的复合量；其余复合量均为比例，现算：
   `GM_ID`=gm/id、`GM_CGG`=gm/Cgg（fT=`GM_CGG/(2π)`）、`GM_GDS`=gm/gds（固有增益）、`ID_W`=ID/W。
 
-N40 单文件约 45–50 MB（float32 + gzip6），10 个文件合计约 0.5 GB；
-tsmc18 网格更大，单文件约 65–70 MB，合计约 0.7 GB。
+tsmcN65 单文件约 45–50 MB、tsmcN40 约 45–50 MB、tsmc18 约 65–70 MB（float32 + gzip6），
+每组 10 个文件合计 0.5 / 0.5 / 0.7 GB。
 
 ## 关键配置说明（`config_<proc>.py`）
 
@@ -95,16 +132,15 @@ tsmc18 网格更大，单文件约 65–70 MB，合计约 0.7 GB。
 以及扫描步长（`VGS_STEP` / `VDS_STEP` / `VSB_STEP`）与 `LENGTH` 网格。netlist
 模板、存储变量表与 PSF 信号映射位于 `config_common.py`。
 
-- **模型文件**：路径由 `machine.env` 的 `PDK_MODEL_FILE` 指定，两种工艺各用一张
-  模型卡（N40：`crn40lp_2d5_v2d0_2.scs`；tsmc18：`c018bcd_gen2_v1d6.scs`）。
-  `SECTIONS` 为空时直接 `include "..."`；`'stat'`、`'global'`、`'{corner}'` 等条目
-  展开为 `include "..." section=...`。N40 取 `['stat', 'global', '{corner}']`；
-  tsmc18 取 `['stat_noise', '{corner}']`。
+- **模型文件**：路径由 `machine.env` 的 `PDK_MODEL_FILE` 指定，每种工艺各用一张
+  模型卡（tsmcN65：`crn65lp_2d5_lk_v1d7.scs`；tsmcN40：`crn40lp_2d5_v2d0_2.scs`；
+  tsmc18：`cmn018_gp2a_5v_v1d4.scs`）。`SECTIONS` 为空时直接 `include "..."`；
+  `'stat'`、`'global'`、`'{corner}'` 等条目展开为 `include "..." section=...`。
+  tsmcN65 取 `['stat_noise', '{corner}']`；tsmcN40 取 `['stat', 'global', '{corner}']`；
+  tsmc18 取 `['{corner}']`。
 - **工艺角**：由 `CORNERS` 定义，`pipeline.sh`、`run_sim.py`、`extract.py` 均从
   配置读取。
 - **Spectre**：`machine.env` 中的 `SPECTRE_BIN`（默认 `/opt/eda/cadence/SPECTRE181/tools.lnx86/bin/spectre`）。
-- **N40 缩放**：PDK 文档（T-N40-CM-SP-001）说明基础模型卡已含缩放因子，因此直接
-  包含基础卡；叠加 `setscale scalefactor=0.9` 会造成双重缩放（0.9×0.9=0.81）。
 
 ## 运行环境（远端 Linux / VM）
 
@@ -149,7 +185,7 @@ Python 经 `paths.py` 读取，`pipeline.sh` 经 `source machine.env` 读取，�
 （默认 `$HOME/venvs/gmId313/bin/python`）；未安装 psf-parser 时 `psf_reader.py`
 回退到 ASCII 解析（速度较慢，且要求 `rawfmt=psfascii`）。
 
-下文的 `D:\tsmcN40_lookup\`、`D:\tsmc18_lookup\` 只是示例，说明脚本与查找表可以
+下文的 `D:\tsmcN65_lookup\`、`D:\tsmc18_lookup\` 只是示例，说明脚本与查找表可以
 放在这样的目录里；实际输出位置由 `MATDIR` 决定。
 
 ## 快速开始
@@ -184,7 +220,7 @@ $PYTHON_BIN extract.py --srcdir "$RAWDIR" --outdir "$MATDIR" --workers 5
 
 # Step 3 — 使用查找表 API（示例见下文"Python 使用"）
 from lookup_funs.lookup_table import loadmat, lookup, lookupVGS
-nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
+nch = loadmat(r"D:\tsmcN65_lookup\tsmcN65_nch_tt.h5")
 ```
 
 ### 4. 切换工艺 / 新增工艺
@@ -198,10 +234,10 @@ CONFIG_MODULE=config_tsmc18 bash pipeline.sh
 # 或写入 machine.env：CONFIG_MODULE=config_tsmc18
 ```
 
-同时将 `PDK_MODEL_FILE` 指向该工艺的模型卡；`MATDIR` 建议按工艺分目录。两种工艺
-的输出文件名都带工艺前缀（`tsmcN40_` / `tsmc18_`），共用目录时不会冲突。
+同时将 `PDK_MODEL_FILE` 指向该工艺的模型卡；`MATDIR` 建议按工艺分目录。三种工艺
+的输出文件名都带工艺前缀（`tsmcN65_` / `tsmcN40_` / `tsmc18_`），共用目录时不会冲突。
 
-两种工艺的扫描网格见「扫描网格」一节。
+三种工艺的扫描网格见「扫描网格」一节。
 
 新增工艺：复制 `config_tsmc18.py`，修改 `TAG`、`INFO`、`SECTIONS`、`CORNERS`、
 `VDD`、`VSB_MAX`、`WIDTH`、`NFING`、步长与 `LENGTH`；`run_sim.py`、`extract.py`、
@@ -215,8 +251,8 @@ CONFIG_MODULE=config_tsmc18 bash pipeline.sh
 ```python
 from lookup_funs.lookup_table import loadmat, lookup, lookupVGS
 
-nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
-pch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_pch_tt.h5")
+nch = loadmat(r"D:\tsmcN65_lookup\tsmcN65_nch_tt.h5")
+pch = loadmat(r"D:\tsmcN65_lookup\tsmcN65_pch_tt.h5")
 
 gm_id = lookup(nch, 'GM_ID', 'VGS', 0.6, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)     # 查表
 VGS   = lookupVGS(nch, 'GM_ID', 15, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)          # 反查 VGS
@@ -238,27 +274,27 @@ HDF5 文件可由 Mathematica `Import` 直接读取，见 `mathematica/lookup_ta
 
 ```mathematica
 << "mathematica/lookup_table.wl"
-data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5"];
+data = LoadLookupTable["D:\\tsmcN65_lookup\\tsmcN65_nch_tt.h5"];
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];
 wt = lookup[data, "GM_CGG", "GM_ID", {5, 10, 15}, "VDS", 0.7, "L", 0.1];
 
 (* 正查一次获取多个变量；返回值顺序与变量名列表一致 *)
 {intrinsicGain, idPerWidth} = lookup[data, {"GM_GDS", "ID_W"},
-  "L", {0.04, 0.06}, "VGS", {0.6, 0.7}, "VDS", 0.7, "VSB", 0.];
+  "L", {0.06, 0.08}, "VGS", {0.6, 0.7}, "VDS", 0.7, "VSB", 0.];
 
 (* lookupVGS 也支持普通 mode 1 的多维 Cartesian 输入 *)
 vgs = lookupVGS[data, "GM_ID", {10., 12., 15.},
-  "L", {0.04, 0.06}, "VDS", {0.5, 0.7}, "VSB", 0.];
+  "L", {0.06, 0.08}, "VDS", {0.5, 0.7}, "VSB", 0.];
 Dimensions[vgs]                         (* {2, 2, 3} *)
 
 vgsUnknownSource = lookupVGS[data, "GM_ID", {10., 12., 15.},
-  "VDB", .6, "VGB", 1., "L", .04];
+  "VDB", .6, "VGB", 1., "L", .06];
 
 (* MapThread 参数按位置配对；原生 VDS 列表仍是笛卡尔维度 *)
 gain = lookup[data, "GM_GDS", "GM_ID", #1, "L", #2,
     "VDS", {0.5, 0.7, 0.9}, "VSB", 0] & ~MapThread~
-  {{8, 10, 12}, {0.04, 0.06, 0.08}};
+  {{8, 10, 12}, {0.06, 0.08, 0.10}};
 Dimensions[gain]                         (* {3, 3} = 配对维度 × VDS维度 *)
 ```
 
@@ -281,7 +317,7 @@ Dimensions[gain]                         (* {3, 3} = 配对维度 × VDS维度 *
 
 ## 备注
 
-- N40 最小 L 为 0.04 µm（40 nm），网格从 0.04 µm 起步，最长 2 µm；tsmc18 从
+- tsmcN65 最小 L 为 0.06 µm（65 nm），网格从 0.06 µm 起步，最长 2 µm；tsmc18 从
   0.18 µm 起步，最长 2 µm。
 - 新增工艺：复制 `config_tsmc18.py` 并修改参数，将 `machine.env` 的
   `CONFIG_MODULE` / `PDK_MODEL_FILE` 指向新工艺；`run_sim.py`、`extract.py`、

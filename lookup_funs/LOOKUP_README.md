@@ -6,13 +6,18 @@
 输出目录由 `machine.env` 的 `MATDIR` 决定，下面以本机习惯的路径为例：
 
 ```text
+D:\tsmcN65_lookup\
+├── tsmcN65_nch_tt.h5      (65 nm, nch, typical corner)
+├── tsmcN65_nch_ff.h5
+├── tsmcN65_nch_fs.h5
+├── tsmcN65_nch_sf.h5
+├── tsmcN65_nch_ss.h5
+├── tsmcN65_pch_tt.h5
+└── ...
+
 D:\tsmcN40_lookup\
-├── tsmcN40_nch_tt.h5      (N40, nch, typical corner)
+├── tsmcN40_nch_tt.h5      (40 nm, nch, typical corner)
 ├── tsmcN40_nch_ff.h5
-├── tsmcN40_nch_fs.h5
-├── tsmcN40_nch_sf.h5
-├── tsmcN40_nch_ss.h5
-├── tsmcN40_pch_tt.h5
 └── ...
 
 D:\tsmc18_lookup\
@@ -30,23 +35,25 @@ D:\tsmc18_lookup\
 
 ## 2. 工艺参数概览
 
-| 参数           | TSMC N40                                      | TSMC 0.18 µm (tsmc18)                        |
-| -------------- | --------------------------------------------- | -------------------------------------------- |
-| **电源电压**   | **1.1 V**（核心器件）                         | **1.8 V**（核心器件）                        |
-| **默认 VDS**   | **0.55 V**（VDD/2）                           | **0.9 V**（VDD/2）                           |
-| **默认 VSB**   | 0 V                                           | 0 V                                          |
-| VGS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）               | 0 ~ 1.8 V，步长 0.025 V（73 点）             |
-| VDS 范围       | 0 ~ 1.1 V，步长 0.02 V（56 点）               | 0 ~ 1.8 V，步长 0.025 V（73 点）             |
-| VSB 范围       | 0 ~ 0.8 V，步长 0.1 V（9 点）                 | 0 ~ 1.0 V，步长 0.1 V（11 点）               |
-| L 范围         | 0.04 ~ 2 µm（44 点），详细值见下方            | 0.18 ~ 2 µm（32 点），详细值见下方           |
-| 仿真宽度 W     | 10 µm                                         | 10 µm                                        |
-| 单变量网格     | 44 × 56 × 56 × 9 = 1,241,856 点               | 32 × 73 × 73 × 11 = 1,875,808 点             |
+| 参数           | TSMC 65 nm (tsmcN65)            | TSMC 40 nm (tsmcN40)           | TSMC 0.18 µm (tsmc18)          |
+| -------------- | ------------------------------ | ------------------------------ | ------------------------------ |
+| **电源电压**   | **1.2 V**（核心器件）          | **1.1 V**（核心器件）          | **1.8 V**（核心器件）          |
+| **默认 VDS**   | **0.6 V**（VDD/2）             | **0.55 V**（VDD/2）            | **0.9 V**（VDD/2）             |
+| **默认 VSB**   | 0 V                            | 0 V                            | 0 V                            |
+| VGS 范围       | 0 ~ 1.2 V，0.02 V（61 点）     | 0 ~ 1.1 V，0.02 V（56 点）     | 0 ~ 1.8 V，0.025 V（73 点）    |
+| VDS 范围       | 0 ~ 1.2 V，0.02 V（61 点）     | 0 ~ 1.1 V，0.02 V（56 点）     | 0 ~ 1.8 V，0.025 V（73 点）    |
+| VSB 范围       | 0 ~ 0.8 V，0.1 V（9 点）       | 0 ~ 0.8 V，0.1 V（9 点）       | 0 ~ 1.0 V，0.1 V（11 点）      |
+| L 范围         | 0.06 ~ 2 µm（41 点）           | 0.04 ~ 2 µm（44 点）           | 0.18 ~ 2 µm（32 点）           |
+| 仿真宽度 W     | 10 µm                          | 10 µm                          | 10 µm                          |
+| 单变量网格     | 41 × 61 × 61 × 9 = 1,373,049   | 44 × 56 × 56 × 9 = 1,241,856   | 32 × 73 × 73 × 11 = 1,875,808  |
 
 维度顺序均为 `(L, VGS, VDS, VSB)`。
 
 **L 详细值**：
 
-- N40（44 点）：0.04 ~ 0.14（步长 0.01）；0.16 ~ 0.50（步长 0.02）；
+- tsmcN65（41 点）：0.06 ~ 0.20（步长 0.01）；0.25 ~ 1.00（步长 0.05）；
+  1.1 ~ 2.0（步长 0.10）
+- tsmcN40（44 点）：0.04 ~ 0.14（步长 0.01）；0.16 ~ 0.50（步长 0.02）；
   0.55 ~ 1.00（步长 0.05）；1.2, 1.4, 1.6, 1.8, 2.0
 - tsmc18（32 点）：0.18 ~ 0.50（步长 0.02）；0.60 ~ 2.00（步长 0.10）
 
@@ -62,11 +69,16 @@ D:\tsmc18_lookup\
 
 ## 4. Python API
 
+每个工艺都有一套可直接运行的示例脚本（`<proc>` = `tsmcN65` / `tsmcN40` / `tsmc18`）：
+
+- `lookup_demo_<proc>.py`：3×3 张 gm/ID 设计图（需要 matplotlib + mplcursors）；
+- `xtract_demo_<proc>.py`：EKV 参数提取与重建，和查找表数据对比。
+
 ```python
 from lookup_table import loadmat, lookup, lookupVGS
 
-nch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_nch_tt.h5")
-pch = loadmat(r"D:\tsmcN40_lookup\tsmcN40_pch_tt.h5")
+nch = loadmat(r"D:\tsmcN65_lookup\tsmcN65_nch_tt.h5")
+pch = loadmat(r"D:\tsmcN65_lookup\tsmcN65_pch_tt.h5")
 
 # 基础查表
 gm_id = lookup(nch, 'GM_ID', 'VGS', 0.6, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
@@ -80,7 +92,7 @@ VGS = lookupVGS(nch, 'GM_ID', 15, 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
 wt = lookup(nch, 'GM_CGG', 'GM_ID', [5, 10, 15], 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
 ```
 
-> 两种工艺的表格接口相同；换工艺只需换文件（如 `tsmc18_nch_tt.h5`），查询参数按各自的
+> 三种工艺的表格接口相同；换工艺只需换文件（如 `tsmc18_nch_tt.h5`），查询参数按各自的
 > VDD / L 网格取值。pch 文件同样使用**正电压域**（|VSG|、|VSD|）查询，与 nch 一致。
 
 ### 附录缺省值
@@ -103,7 +115,7 @@ wt = lookup(nch, 'GM_CGG', 'GM_ID', [5, 10, 15], 'VDS', 0.7, 'VSB', 0, 'L', 0.1)
 ```python
 from ekv_extract import XTRACT, XTRACT2
 
-y = XTRACT(nch, 0.1, 0.55, 0)       # rho=0.6, TEMP=300 K
+y = XTRACT(nch, 0.1, 0.6, 0)        # rho=0.6, TEMP=300 K
 p = XTRACT2(vgs, ids)                 # [n, VT, IS], rho=0.6, 300 K
 p_density = XTRACT2(vgs, ids, W=10)   # [n, VT, JS]
 ```
@@ -115,7 +127,7 @@ Mathematica API 与附录及本项目 Python API 保持相同的函数划分和�
 
 ```mathematica
 << "mathematica/lookup_table.wl";
-data = LoadLookupTable["D:\\tsmcN40_lookup\\tsmcN40_nch_tt.h5"];
+data = LoadLookupTable["D:\\tsmcN65_lookup\\tsmcN65_nch_tt.h5"];
 
 gmId = lookup[data, "GM_ID", "VGS", 0.6, "VDS", 0.7, "VSB", 0, "L", 0.1];
 vgs = lookupVGS[data, "GM_ID", 15, "VDS", 0.7, "VSB", 0, "L", 0.1];
@@ -128,7 +140,7 @@ wt = lookup[data, "GM_CGG", "GM_ID", {5, 10, 15}, "VDS", 0.7,
 
 ```mathematica
 << "mathematica/ekv_extract.wl";
-y = XTRACT[data, 0.1, 0.55, 0];
+y = XTRACT[data, 0.1, 0.6, 0];
 p = XTRACT2[vgs, ids];
 pDensity = XTRACT2[vgs, ids, 0.6, 300., 10.];
 ```

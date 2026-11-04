@@ -1,7 +1,7 @@
 """Process-independent lookup-table configuration.
 
 Everything in this module is shared by the per-process config modules
-(``config_tsmcN40.py``, ``config_tsmc18.py``, ...):
+(``config_tsmcN65.py``, ``config_tsmcN40.py``, ``config_tsmc18.py``, ...):
 
 * the stored variable list and the Spectre signal -> variable mapping,
 * the Spectre netlist template,

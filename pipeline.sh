@@ -36,7 +36,7 @@ set +a
 
 PYTHON="$PYTHON_BIN"
 # Process config module; set CONFIG_MODULE in machine.env to switch process.
-CONFIG_MODULE="${CONFIG_MODULE:-config_tsmcN40}"
+CONFIG_MODULE="${CONFIG_MODULE:-config_tsmcN65}"
 export CONFIG_MODULE
 WORKERS=5   # corner-level parallelism inside extract.py
 

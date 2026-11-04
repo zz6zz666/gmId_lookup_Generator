@@ -33,8 +33,8 @@ from multiprocessing import Pool
 
 from cli import pop_int_option, pop_option, pop_range
 
-# Process config, selected with CONFIG_MODULE (default: TSMC N40).
-_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN40'))
+# Process config, selected with CONFIG_MODULE (default: TSMC 65 nm).
+_cfg = importlib.import_module(os.environ.get('CONFIG_MODULE', 'config_tsmcN65'))
 get_config = _cfg.get_config
 
 

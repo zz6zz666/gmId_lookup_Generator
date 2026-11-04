@@ -1,8 +1,8 @@
-"""TSMC 0.18 um BCD Gen II (tsmc18) 1.8 V core devices: nch / pch, BSIM4.
+"""TSMC 0.18 um Mixed-Signal SALICIDE GPII-A (tsmc18) 1.8 V core: nch / pch, BSIM4.
 
-Model card ``c018bcd_gen2_v1d6.scs`` (T-018-CV-SP-018, v1.6), included as
-``stat_noise`` + ``<corner>``: the corner sections reference the flicker-noise
-statistics variables, which ``stat_noise`` defines as zero for a nominal run.
+Model card ``cmn018_gp2a_5v_v1d4.scs`` (T-018-CM-SP-012, v1.4; 1.8 V core /
+5 V I/O), included as ``<corner>`` only: each corner section pulls in the
+``setup`` and ``mos`` sections itself.
 
 The four axes follow ``techsweep_config_bsim3_180_hspice.m`` of the gm/ID book
 (25 mV VGS/VDS, 100 mV VSB, 32 L points); only the device size differs.  The
@@ -16,7 +16,7 @@ from config_common import (build_config, print_length_count,  # noqa: F401
 
 TAG = 'tsmc18'
 INFO = 'tsmc18, BSIM4, 1.8V'
-SECTIONS = ['stat_noise', '{corner}']
+SECTIONS = ['{corner}']
 CORNERS = ['tt', 'ff', 'ss', 'fs', 'sf']
 TEMP = 300
 VDD = 1.8
