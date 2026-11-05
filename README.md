@@ -1,4 +1,4 @@
-# gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
+﻿# gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
 
 面向 TSMC 65 nm LP 1.2 V 核心器件、TSMC 40 nm LP 1.1 V 核心器件和
 TSMC 0.18 µm (tsmc18) 1.8 V 核心器件的 nch / pch gm/ID 查找表生成工具集：
@@ -102,18 +102,34 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | 工艺角     | `tt ff ss fs sf` |
 | 输出文件   | `tsmc18_nch_<corner>.h5` / `tsmc18_pch_<corner>.h5`，共 10 个 |
 
-tsmc18 的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`；参考器件尺寸由
-该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。该模型卡的工艺角段（`tt ss ff sf fs`）
-自身 `include ... section=setup` 与 `section=mos`，所以 `SECTIONS` 只需 `['{corner}']`。
+### TSMC 0.18 µm 5 V I/O — `config_tsmc18_5v.py`
 
-65 nm 模型卡则相反：工艺角段引用了闪烁噪声的统计量（`par1fn_mc` 等），
-`SECTIONS` 必须为 `['stat_noise', '{corner}']` —— 先包含 `stat_noise`（标称仿真下
-这些统计量为 0），再包含对应工艺角；否则 Spectre 报 `unknown parameter 'par1fn_mc'`。
+| 参数       | 值 |
+| ---------- | --- |
+| 工艺 / 器件 | 同一张 0.18 µm 卡的 5 V I/O 器件，BSIM4，**nch_5 / pch_5**（`cmn018_gp2a_5v_v1d4.scs`） |
+| VGS        | 0 ~ 5 V，步长 0.05 → 101 点 |
+| VDS        | 0 ~ 5 V，步长 0.05 → 101 点 |
+| VSB        | 0 ~ 3.5 V，步长 0.5 → 8 点 |
+| L          | nch_5：0.6 ~ 5 µm → 25 点；pch_5：0.5 ~ 5 µm → 27 点（额外多 0.5/0.55 两行） |
+| 单变量网格 | nch_5 25 × 101 × 101 × 8 = 2,040,200 点；pch_5 27 × 101 × 101 × 8 = 2,203,416 点 |
+| 工艺角     | `tt ff ss fs sf`（文件里不带 `_5` 后缀） |
+| 输出文件   | `tsmc18_nch_5_<corner>.h5` / `tsmc18_pch_5_<corner>.h5`，共 10 个（约 660 MB） |
+
+网表里用 `section=tt_5`，但 `CORNER` 与文件名仍写 `tt`，`_5` 只加在器件名上
+（`tsmc18_nch_5_tt.h5`、`DEVICE = nch_5`），可与 1.8 V 表同目录共存。
+
+L 轴分两段来源：主扫描从 0.6 µm 起（`nch_5` 最短 0.6 µm，0.55 µm 报 `CMI-2440`），
+`pch_5` 的 0.5 / 0.55 µm 两行另跑一次 pch-only 短扫描后并入 pch 表，所以 pch 表比
+nch 表多两行；上限 5 µm 覆盖 5 V 器件的偏置/电流镜用法。该器件 `igcmod=0`，
+`IGD` / `IGS` 恒为 0。
+
+tsmc18（1.8 V）的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`，参考器件由
+该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。
 
 ## 存储格式（.h5，HDF5）
 
 - 每个文件对应一个器件与工艺角的组合，如 `tsmcN65_nch_tt.h5`、`tsmc18_nch_tt.h5`；
-  三种工艺的输出文件名都带各自的工艺前缀，可共存于同一目录。
+  各表文件名都带工艺/器件前缀（`tsmcN65_`、`tsmcN40_`、`tsmc18_`、`tsmc18_nch_5_`），可共存于同一目录。
 - 4-D 数据数组 `(L, VGS, VDS, VSB)`，
   **float32 + gzip(level 6) + shuffle**，chunk = 一个 L 的整片 `(1, VGS, VDS, VSB)`。
 - 元数据存为标量/字符串数据集：`CORNER DEVICE INFO TEMP W NFING`。
@@ -122,8 +138,8 @@ tsmc18 的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`；参考�
   `VDSAT`=BSIM 饱和电压，唯一存储的复合量；其余复合量均为比例，现算：
   `GM_ID`=gm/id、`GM_CGG`=gm/Cgg（fT=`GM_CGG/(2π)`）、`GM_GDS`=gm/gds（固有增益）、`ID_W`=ID/W。
 
-tsmcN65 单文件约 45–50 MB、tsmcN40 约 45–50 MB、tsmc18 约 65–70 MB（float32 + gzip6），
-每组 10 个文件合计 0.5 / 0.5 / 0.7 GB。
+tsmcN65 单文件约 45–50 MB、tsmcN40 约 45–50 MB、tsmc18 约 65–70 MB、tsmc18 5V 约 65–73 MB
+（float32 + gzip6），每组 10 个文件合计 0.5 / 0.5 / 0.7 / 0.7 GB。
 
 ## 关键配置说明（`config_<proc>.py`）
 
@@ -136,8 +152,9 @@ tsmcN65 单文件约 45–50 MB、tsmcN40 约 45–50 MB、tsmc18 约 65–70 MB
   模型卡（tsmcN65：`crn65lp_2d5_lk_v1d7.scs`；tsmcN40：`crn40lp_2d5_v2d0_2.scs`；
   tsmc18：`cmn018_gp2a_5v_v1d4.scs`）。`SECTIONS` 为空时直接 `include "..."`；
   `'stat'`、`'global'`、`'{corner}'` 等条目展开为 `include "..." section=...`。
-  tsmcN65 取 `['stat_noise', '{corner}']`；tsmcN40 取 `['stat', 'global', '{corner}']`；
-  tsmc18 取 `['{corner}']`。
+  tsmcN65 取 `['stat_noise', '{corner}']`（corner 段引用 `par1fn_mc` 等闪烁噪声
+  统计量，缺这一段会报 `unknown parameter`）；tsmcN40 取 `['stat', 'global', '{corner}']`；
+  tsmc18 取 `['{corner}']`；tsmc18 5V 取 `['{corner}_5']`。
 - **工艺角**：由 `CORNERS` 定义，`pipeline.sh`、`run_sim.py`、`extract.py` 均从
   配置读取。
 - **Spectre**：`machine.env` 中的 `SPECTRE_BIN`（默认 `/opt/eda/cadence/SPECTRE181/tools.lnx86/bin/spectre`）。
