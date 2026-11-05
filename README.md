@@ -1,4 +1,4 @@
-﻿# gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
+# gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
 
 面向 TSMC 65 nm LP 1.2 V 核心器件、TSMC 40 nm LP 1.1 V 核心器件和
 TSMC 0.18 µm (tsmc18) 1.8 V 核心器件的 nch / pch gm/ID 查找表生成工具集：
@@ -15,6 +15,7 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 ├── config_tsmcN65.py     # TSMC 65 nm 工艺参数（轴 / 模型 / 器件尺寸）
 ├── config_tsmcN40.py     # TSMC 40 nm 工艺参数（轴 / 模型 / 器件尺寸）
 ├── config_tsmc18.py      # TSMC 0.18µm 工艺参数（轴 / 模型 / 器件尺寸）
+├── config_tsmc18_5v.py   # 同一工艺的 5 V I/O 器件（nch_5 / pch_5）
 ├── run_sim.py            # Spectre 仿真（多工艺角并行）
 ├── extract.py            # 数据提取，生成 .h5 查找表
 ├── psf_reader.py         # PSF 格式仿真结果读取器
@@ -28,9 +29,11 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 │   ├── lookup_demo_tsmcN65.py
 │   ├── lookup_demo_tsmcN40.py
 │   ├── lookup_demo_tsmc18.py
+│   ├── lookup_demo_tsmc18_5v.py
 │   ├── xtract_demo_tsmcN65.py
 │   ├── xtract_demo_tsmcN40.py
 │   ├── xtract_demo_tsmc18.py
+│   ├── xtract_demo_tsmc18_5v.py
 │   └── LOOKUP_README.md
 ├── mathematica/          # Mathematica 加载 / 插值脚本与示例
 │   ├── lookup_table.wl
@@ -38,14 +41,16 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 │   ├── lookup_demo_tsmcN65.wl
 │   ├── lookup_demo_tsmcN40.wl
 │   ├── lookup_demo_tsmc18.wl
+│   ├── lookup_demo_tsmc18_5v.wl
 │   ├── xtract_demo_tsmcN65.wl
 │   ├── xtract_demo_tsmcN40.wl
 │   ├── xtract_demo_tsmc18.wl
+│   ├── xtract_demo_tsmc18_5v.wl
 │   └── README.md
 └── README.md
 ```
 
-示例脚本按工艺各一套（`<proc>` = `tsmcN65` / `tsmcN40` / `tsmc18`）：
+示例脚本每张表一套（`<proc>` = `tsmcN65` / `tsmcN40` / `tsmc18` / `tsmc18_5v`）：
 
 - `lookup_demo_<proc>.{py,wl}`：3×3 张常用 gm/ID 设计图（`ID/W`、`gm/ID`、`VT`、
   `fT`、固有增益、`VDSAT`、`Cgg/W`、`Cgd/Cgg`），固定 VDS = VDD/2、VSB = 0，扫 VGS；
@@ -114,6 +119,7 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | 单变量网格 | nch_5 25 × 101 × 101 × 8 = 2,040,200 点；pch_5 27 × 101 × 101 × 8 = 2,203,416 点 |
 | 工艺角     | `tt ff ss fs sf`（文件里不带 `_5` 后缀） |
 | 输出文件   | `tsmc18_nch_5_<corner>.h5` / `tsmc18_pch_5_<corner>.h5`，共 10 个（约 660 MB） |
+| 输出目录   | 独立目录 `D:\tsmc18_5v_lookup\`（与 1.8 V 的 `D:\tsmc18_lookup\` 分开） |
 
 网表里用 `section=tt_5`，但 `CORNER` 与文件名仍写 `tt`，`_5` 只加在器件名上
 （`tsmc18_nch_5_tt.h5`、`DEVICE = nch_5`），可与 1.8 V 表同目录共存。
@@ -202,7 +208,7 @@ Python 经 `paths.py` 读取，`pipeline.sh` 经 `source machine.env` 读取，�
 （默认 `$HOME/venvs/gmId313/bin/python`）；未安装 psf-parser 时 `psf_reader.py`
 回退到 ASCII 解析（速度较慢，且要求 `rawfmt=psfascii`）。
 
-下文的 `D:\tsmcN65_lookup\`、`D:\tsmc18_lookup\` 只是示例，说明脚本与查找表可以
+下文的 `D:\tsmcN65_lookup\`、`D:\tsmc18_lookup\`、`D:\tsmc18_5v_lookup\` 只是示例，说明脚本与查找表可以
 放在这样的目录里；实际输出位置由 `MATDIR` 决定。
 
 ## 快速开始
