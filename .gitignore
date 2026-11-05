@@ -31,3 +31,7 @@ Thumbs.db
 
 # Machine-specific config
 machine.env
+
+# Local comparison figures and the script that draws them
+fig_gmid_L_compare.*
+proc_compare_*.png

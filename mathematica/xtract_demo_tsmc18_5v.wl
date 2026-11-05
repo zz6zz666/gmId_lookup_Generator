@@ -17,7 +17,7 @@ Get[FileNameJoin[{scriptDir, "ekv_extract.wl"}]];
 nch = LoadLookupTable[FileNameJoin[{dataDir, "tsmc18_nch_5_tt.h5"}]];
 
 UT = 1.380649*^-23*300./1.602176634*^-19;   (* kT/q @300K *)
-L = 1.0; VDS = 2.5; VSB = 0.; rho = 0.6;   (* VDS=VDD/2 *)
+L = 1.0; VDD = Max[nch["VGS"]]; VDS = VDD/2; VSB = 0.; rho = 0.6;   (* VDS=VDD/2 *)
 vgs = nch["VGS"]; vdsVec = Select[nch["VDS"], # >= 0.3 &];
 
 (* \:53cd\:6c42\:6b63\:5e38\:5316\:7535\:8377 q: x = 2(q-1) + ln(q) *)
@@ -99,13 +99,13 @@ With[{yy = XTRACT[nch, L, vdsVec, VSB, rho]},
 ]
 
 (* =====================================================================
-   7. intrinsic gain vs gm/ID \[LongDash] \:56fa\:5b9a VDS=0.6V \:626b VGS
+   7. intrinsic gain vs gm/ID \[LongDash] \:56fa\:5b9a VDS=VDD/2 \:626b VGS
    ===================================================================== *)
-With[{yy = XTRACT[nch, L, Select[nch["VDS"], .5 <= # <= .7 &], VSB, rho]},
-  j = First@Ordering[Abs[Select[nch["VDS"], .5 <= # <= .7 &] - 0.6], 1];
+With[{yy = XTRACT[nch, L, Select[nch["VDS"], VDS - .1 <= # <= VDS + .1 &], VSB, rho]},
+  j = First@Ordering[Abs[Select[nch["VDS"], VDS - .1 <= # <= VDS + .1 &] - VDS], 1];
   nJ = yy[[j, 2]]; dnJ = yy[[j, 5]]; dvtJ = yy[[j, 6]]; djsJ = yy[[j, 7]];
    {gmidLut, gainLut} = lookup[nch, {"GM_ID", "GM_GDS"},
-      "L", L, "VGS", vgs, "VDS", 0.6, "VSB", VSB];
+      "L", L, "VGS", vgs, "VDS", VDS, "VSB", VSB];
   qG = Map[Max[1/(nJ*UT*#) - 1, $MachineEpsilon] &, gmidLut];
   xG = 2 (qG - 1) + Log[qG];
   gainEkv = 1/(djsJ/gmidLut - dvtJ - xG*dnJ);

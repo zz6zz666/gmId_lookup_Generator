@@ -22,7 +22,8 @@ from lookup_table import loadmat, lookup
 # ------------------------------------------------------------------
 nch = loadmat(r"D:\tsmc18_5v_lookup\tsmc18_nch_5_tt.h5")
 
-VDS = 2.5
+VDD = float(np.max(nch.VGS))
+VDS = VDD / 2.0  # 默认偏置：VDD/2
 VSB = 0
 lengths = [0.6, 0.8, 1.2, 2.0, 5.0]  # µm
 colors = plt.cm.viridis(np.linspace(0, 0.9, len(lengths)))

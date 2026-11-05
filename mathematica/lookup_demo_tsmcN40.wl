@@ -41,7 +41,9 @@ Style[Grid[{
 
 Ls = {0.04, 0.05, 0.07, 0.12, 0.2};
 cols = ColorData["Rainbow"][#] & /@ Subdivide[0, 0.9, Length[Ls] - 1];
-vgs = tt["VGS"];
+vgs = tt["VGS"]; Lall = tt["L"];
+VDD = Max[vgs]; VDSo = VDD/2;
+vdTag = "@ VDS=" <> ToString[VDSo] <> "V";   (* 偏置标签随 VDD 走 *)
 
 (* \:56fa\:5b9a (VSB,VDS) \:6cbf VGS \:626b\:51fa\:5404 L \:7684\:4e00\:7ec4\:66f2\:7ebf *)
 fam[data_, var_, vsb_, vds_, Ls_] :=
@@ -54,25 +56,25 @@ legend[Ls_] := LineLegend[cols, Map["L=" <> ToString[#] <> " um" &, Ls],
 (* =====================================================================
    1. gm/ID vs VGS  \[LongDash] \:5f31\:53cd\:578b\:5cf0\:503c\:5e94 \[TildeTilde] 25~35\:ff0c\:5f3a\:53cd\:578b\:5355\:8c03\:4e0b\:964d\:3001\:65e0\:6bdb\:523a
    ===================================================================== *)
-ListLinePlot[fam[tt, "GM_ID", 0, 0.55, Ls], DataRange -> {0, 1.1},
+ListLinePlot[fam[tt, "GM_ID", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "gm/ID (S/A)"},
- PlotLabel -> "nch tt: gm/ID vs VGS  @ VDS=0.55V VSB=0",
+ PlotLabel -> "nch tt: gm/ID vs VGS  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
    2. ID vs VGS\:ff08\:5bf9\:6570\:ff09 \[LongDash] \:4e9a\:9608\:533a\:5e94\:5448\:76f4\:7ebf\:3001\:65e0\:6298\:70b9/\:53cc\:5cf0\:ff1bVGS=0 \:4e3a\:5173\:65ad\:7535\:6d41
    ===================================================================== *)
-ListLogPlot[fam[tt, "ID", 0, 0.55, Ls], DataRange -> {0, 1.1},
+ListLogPlot[fam[tt, "ID", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "ID (A)"},
- PlotLabel -> "nch tt: ID vs VGS (log)  @ VDS=0.55V VSB=0",
+ PlotLabel -> "nch tt: ID vs VGS (log)  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
    3. ID vs VDS\:ff08\:8f93\:51fa\:7279\:6027\:65cf\:ff09 \[LongDash] \:9971\:548c\:533a\:5e94\:5e73\:5766\:3001\:65e0\:626d\:7ed3(kink)\:3001\:65e0\:5f02\:5e38\:53cd\:5f39
    ===================================================================== *)
-vgsO = {0.4, 0.6, 0.8, 1.0};
+vgsO = N@Round[VDD*{0.35, 0.5, 0.65, 0.8}, 0.05];
 With[{vd = tt["VDS"], curves = lookup[tt, "ID", "L", 0.04, "VGS", vgsO,
     "VDS", tt["VDS"], "VSB", 0]},
   ListLinePlot[
@@ -85,23 +87,23 @@ With[{vd = tt["VDS"], curves = lookup[tt, "ID", "L", 0.04, "VGS", vgsO,
 (* =====================================================================
    4. \:672c\:5f81\:589e\:76ca GAIN = gm/gds (GM_GDS) vs gm/ID
    ===================================================================== *)
-ListLogLinearPlot[
-  Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, 0.55, Ls],
-     fam[tt, "GM_GDS", 0, 0.55, Ls]}],
+ListLinePlot[
+  Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, VDSo, Ls],
+     fam[tt, "GM_GDS", 0, VDSo, Ls]}],
   PlotStyle -> cols, PlotLegends -> legend[Ls],
   AxesLabel -> {"gm/ID (S/A)", "gm/gds (V/V)"},
-  PlotLabel -> "nch tt: Intrinsic Gain  @ VDS=0.55V VSB=0",
+  PlotLabel -> "nch tt: Intrinsic Gain  " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
    5. fT vs gm/ID  (fT = GM_CGG/(2 Pi))
    ===================================================================== *)
-ListLogLogPlot[
-  Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, 0.55, Ls],
-     fam[tt, "GM_CGG", 0, 0.55, Ls]/(2 Pi)}],
+ListLogPlot[
+  Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, VDSo, Ls],
+     fam[tt, "GM_CGG", 0, VDSo, Ls]/(2 Pi)}],
   PlotStyle -> cols, PlotLegends -> legend[Ls],
   AxesLabel -> {"gm/ID (S/A)", "fT (Hz)"},
-  PlotLabel -> "nch tt: fT  @ VDS=0.55V VSB=0",
+  PlotLabel -> "nch tt: fT  " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
@@ -109,23 +111,23 @@ ListLogLogPlot[
    ===================================================================== *)
 With[{},
   ListLinePlot[{
-    lookup[tt, "CGG", "L", 0.04, "VGS", vgs, "VDS", 0.55, "VSB", 0],
-    lookup[tt, "CGS", "L", 0.04, "VGS", vgs, "VDS", 0.55, "VSB", 0],
-    lookup[tt, "CGD", "L", 0.04, "VGS", vgs, "VDS", 0.55, "VSB", 0]},
-   DataRange -> {0, 1.1}, PlotRange -> All,
+    lookup[tt, "CGG", "L", 0.04, "VGS", vgs, "VDS", VDSo, "VSB", 0],
+    lookup[tt, "CGS", "L", 0.04, "VGS", vgs, "VDS", VDSo, "VSB", 0],
+    lookup[tt, "CGD", "L", 0.04, "VGS", vgs, "VDS", VDSo, "VSB", 0]},
+   DataRange -> {0, VDD}, PlotRange -> All,
    PlotStyle -> {Blue, Orange, Red},
    PlotLegends -> LineLegend[{"Cgg", "Cgs", "Cgd"}],
    AxesLabel -> {"VGS (V)", "Cap (F)"},
-   PlotLabel -> "nch tt: capacitances  L=0.04um VDS=0.55V VSB=0",
+   PlotLabel -> "nch tt: capacitances  L=0.04um " <> vdTag <> " VSB=0",
    GridLines -> Automatic]]
 
 (* =====================================================================
    7. VDSAT vs VGS  \[LongDash] \:5f3a\:53cd\:578b VDSAT \[TildeTilde] 2/(gm/ID)
    ===================================================================== *)
-ListLinePlot[fam[tt, "VDSAT", 0, 0.55, Ls], DataRange -> {0, 1.1},
+ListLinePlot[fam[tt, "VDSAT", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "VDSAT (V)"},
- PlotLabel -> "nch tt: VDSAT  @ VDS=0.55V VSB=0",
+ PlotLabel -> "nch tt: VDSAT  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
@@ -133,12 +135,12 @@ ListLinePlot[fam[tt, "VDSAT", 0, 0.55, Ls], DataRange -> {0, 1.1},
    ===================================================================== *)
 With[{vsbs = {0.0, 0.2, 0.4, 0.6, 0.8}},
   ListLogPlot[
-    Transpose[lookup[tt, "ID", "L", 0.04, "VGS", vgs, "VDS", 0.55,
+    Transpose[lookup[tt, "ID", "L", 0.04, "VGS", vgs, "VDS", VDSo,
       "VSB", vsbs]],
-    DataRange -> {0, 1.1}, PlotStyle -> Automatic,
+    DataRange -> {0, VDD}, PlotStyle -> Automatic,
     PlotLegends -> LineLegend[Automatic, Map["VSB=" <> ToString[#] <> "V" &, vsbs]],
     AxesLabel -> {"VGS (V)", "ID (A)"},
-    PlotLabel -> "nch tt: body effect  L=0.04um VDS=0.55V",
+    PlotLabel -> "nch tt: body effect  L=0.04um " <> vdTag,
     GridLines -> Automatic]]
 
 (* =====================================================================
@@ -148,13 +150,13 @@ With[{vsbs = {0.0, 0.2, 0.4, 0.6, 0.8}},
 ListLinePlot[
   Table[
     lookup[If[c == "tt", tt, nchGMID[c]], "GM_ID", "L", 0.04, "VGS", vgs,
-      "VDS", 0.55, "VSB", 0],
+      "VDS", VDSo, "VSB", 0],
     {c, corners}],
-  DataRange -> {0, 1.1},
+  DataRange -> {0, VDD},
   PlotStyle -> ColorData["DarkRainbow"][#] & /@ Subdivide[0, 1, Length[corners] - 1],
   PlotLegends -> LineLegend[Automatic, corners],
   AxesLabel -> {"VGS (V)", "gm/ID (S/A)"},
-  PlotLabel -> "nch: gm/ID corners  L=0.04um VDS=0.55V VSB=0",
+  PlotLabel -> "nch: gm/ID corners  L=0.04um " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
@@ -175,12 +177,12 @@ With[{vgsGrid = Range[0., 1.1, 0.02], vdsGrid = Range[0., 1.1, 0.02]},
    ===================================================================== *)
 With[{},
   ListLinePlot[{
-    lookup[tt, "STH", "L", 0.04, "VGS", vgs, "VDS", 0.55, "VSB", 0],
-    lookup[tt, "SFL", "L", 0.04, "VGS", vgs, "VDS", 0.55, "VSB", 0]},
-   DataRange -> {0, 1.1}, PlotRange -> All,
+    lookup[tt, "STH", "L", 0.04, "VGS", vgs, "VDS", VDSo, "VSB", 0],
+    lookup[tt, "SFL", "L", 0.04, "VGS", vgs, "VDS", VDSo, "VSB", 0]},
+   DataRange -> {0, VDD}, PlotRange -> All,
    PlotLegends -> LineLegend[{"STH (id, A^2/Hz)", "SFL (fn, A^2/Hz)"}],
    AxesLabel -> {"VGS (V)", "Noise PSD (A^2/Hz)"},
-   PlotLabel -> "nch tt: noise  L=0.04um VDS=0.55V VSB=0",
+   PlotLabel -> "nch tt: noise  L=0.04um " <> vdTag <> " VSB=0",
    GridLines -> Automatic]]
 
 (* =====================================================================
@@ -190,8 +192,8 @@ nanFrac[arr_] := N[Total[Flatten@Boole[Map[! NumericQ[#] &, arr, {-1}]]] /
     Max[1, Length[Flatten[arr]]]];
 idarr = tt["ID"];
 neg = Flatten@Table[Select[Differences[idarr[[il, All, id, iv]]], # < 0 &],
-    {il, 48}, {id, 56}, {iv, 9}];
-off = Max[Flatten@Table[idarr[[il, 1, id, iv]], {il, 48}, {id, 56}, {iv, 9}]];
+    {il, Length[Lall]}, {id, Length[tt["VDS"]]}, {iv, Length[tt["VSB"]]}];
+off = Max[Flatten@Table[idarr[[il, 1, id, iv]], {il, Length[Lall]}, {id, Length[tt["VDS"]]}, {iv, Length[tt["VSB"]]}]];
 Style[Grid[{
    {"\:53d8\:91cf", "NaN/\:975e\:6570\:503c\:5360\:6bd4"},
    {"STH", nanFrac[tt["STH"]]}, {"SFL", nanFrac[tt["SFL"]]},

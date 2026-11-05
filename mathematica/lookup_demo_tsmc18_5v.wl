@@ -26,6 +26,7 @@ corners = {"tt", "ff", "ss", "fs", "sf"};
 (* --- 数据网格信息 --- *)
 vgsAx = tt["VGS"]; vdsAx = tt["VDS"]; vsbAx = tt["VSB"]; Lall = tt["L"];
 VDD = Max[vgsAx]; VDSo = VDD/2;
+vdTag = "@ VDS=" <> ToString[VDSo] <> "V";   (* 偏置标签随 VDD 走 *)
 
 Style[Grid[{
    {"器件", tt["DEVICE"] <> " " <> tt["CORNER"],
@@ -60,7 +61,7 @@ legend[L_] := LineLegend[cols, Map["L=" <> ToString[#] <> " um" &, L],
 ListLinePlot[fam[tt, "GM_ID", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "gm/ID (S/A)"},
- PlotLabel -> "nch tt: gm/ID vs VGS  @ VDS=0.9V VSB=0",
+ PlotLabel -> "nch tt: gm/ID vs VGS  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
@@ -69,13 +70,13 @@ ListLinePlot[fam[tt, "GM_ID", 0, VDSo, Ls], DataRange -> {0, VDD},
 ListLogPlot[fam[tt, "ID", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "ID (A)"},
- PlotLabel -> "nch tt: ID vs VGS (log)  @ VDS=0.9V VSB=0",
+ PlotLabel -> "nch tt: ID vs VGS (log)  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
    3. ID vs VDS（输出特性族）\[LongDash] 饱和区应平坦、无扭结
    ===================================================================== *)
-vgsO = {0.6, 0.9, 1.2, 1.5};
+vgsO = N@Round[VDD*{0.35, 0.5, 0.65, 0.8}, 0.05];
 With[{L0 = First[Ls],
    curves = lookup[tt, "ID", "L", First[Ls], "VGS", vgsO, "VDS", vdsAx, "VSB", 0]},
   ListLinePlot[
@@ -88,23 +89,23 @@ With[{L0 = First[Ls],
 (* =====================================================================
    4. 本征增益 GAIN = gm/gds (GM_GDS) vs gm/ID
    ===================================================================== *)
-ListLogLinearPlot[
+ListLinePlot[
   Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, VDSo, Ls],
      fam[tt, "GM_GDS", 0, VDSo, Ls]}],
   PlotStyle -> cols, PlotLegends -> legend[Ls],
   AxesLabel -> {"gm/ID (S/A)", "gm/gds (V/V)"},
-  PlotLabel -> "nch tt: Intrinsic Gain  @ VDS=0.9V VSB=0",
+  PlotLabel -> "nch tt: Intrinsic Gain  " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
    5. fT vs gm/ID  (fT = GM_CGG/(2 Pi))
    ===================================================================== *)
-ListLogLogPlot[
+ListLogPlot[
   Transpose[#] & /@ Transpose[{fam[tt, "GM_ID", 0, VDSo, Ls],
      fam[tt, "GM_CGG", 0, VDSo, Ls]/(2 Pi)}],
   PlotStyle -> cols, PlotLegends -> legend[Ls],
   AxesLabel -> {"gm/ID (S/A)", "fT (Hz)"},
-  PlotLabel -> "nch tt: fT  @ VDS=0.9V VSB=0",
+  PlotLabel -> "nch tt: fT  " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
@@ -119,7 +120,7 @@ With[{L0 = First[Ls]},
    PlotStyle -> {Blue, Orange, Red},
    PlotLegends -> LineLegend[{"Cgg", "Cgs", "Cgd"}],
    AxesLabel -> {"VGS (V)", "Cap (F)"},
-   PlotLabel -> "nch tt: capacitances  L=" <> ToString[L0] <> "um VDS=0.9V VSB=0",
+   PlotLabel -> "nch tt: capacitances  L=" <> ToString[L0] <> "um " <> vdTag <> " VSB=0",
    GridLines -> Automatic]]
 
 (* =====================================================================
@@ -128,7 +129,7 @@ With[{L0 = First[Ls]},
 ListLinePlot[fam[tt, "VDSAT", 0, VDSo, Ls], DataRange -> {0, VDD},
  PlotStyle -> cols, PlotLegends -> legend[Ls],
  AxesLabel -> {"VGS (V)", "VDSAT (V)"},
- PlotLabel -> "nch tt: VDSAT  @ VDS=0.9V VSB=0",
+ PlotLabel -> "nch tt: VDSAT  " <> vdTag <> " VSB=0",
  GridLines -> Automatic]
 
 (* =====================================================================
@@ -141,7 +142,7 @@ With[{vsbs = {0.0, 0.25, 0.5, 0.75, 1.0}},
     DataRange -> {0, VDD}, PlotStyle -> Automatic,
     PlotLegends -> LineLegend[Automatic, Map["VSB=" <> ToString[#] <> "V" &, vsbs]],
     AxesLabel -> {"VGS (V)", "ID (A)"},
-    PlotLabel -> "nch tt: body effect  L=" <> ToString[First[Ls]] <> "um VDS=0.9V",
+    PlotLabel -> "nch tt: body effect  L=" <> ToString[First[Ls]] <> "um " <> vdTag,
     GridLines -> Automatic]]
 
 (* =====================================================================
@@ -156,7 +157,7 @@ ListLinePlot[
   PlotStyle -> ColorData["DarkRainbow"][#] & /@ Subdivide[0, 1, Length[corners] - 1],
   PlotLegends -> LineLegend[Automatic, corners],
   AxesLabel -> {"VGS (V)", "gm/ID (S/A)"},
-  PlotLabel -> "nch: gm/ID corners  L=" <> ToString[First[Ls]] <> "um VDS=0.9V VSB=0",
+  PlotLabel -> "nch: gm/ID corners  L=" <> ToString[First[Ls]] <> "um " <> vdTag <> " VSB=0",
   GridLines -> Automatic]
 
 (* =====================================================================
@@ -182,7 +183,7 @@ With[{L0 = First[Ls]},
    DataRange -> {0, VDD}, PlotRange -> All,
    PlotLegends -> LineLegend[{"STH (id, A^2/Hz)", "SFL (fn, A^2/Hz)"}],
    AxesLabel -> {"VGS (V)", "Noise PSD (A^2/Hz)"},
-   PlotLabel -> "nch tt: noise  L=" <> ToString[L0] <> "um VDS=0.9V VSB=0",
+   PlotLabel -> "nch tt: noise  L=" <> ToString[L0] <> "um " <> vdTag <> " VSB=0",
    GridLines -> Automatic]]
 
 (* =====================================================================

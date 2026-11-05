@@ -84,7 +84,8 @@ nch = loadmat(r"D:\tsmc18_5v_lookup\tsmc18_nch_5_tt.h5")
 # For the 5 V grid the shortest channel is L = 0.6 µm (nch_5).
 # ------------------------------------------------------------------
 L = 1.0           # µm
-VDS = 2.5         # V
+VDD = float(np.max(nch.VGS))
+VDS = VDD / 2.0  # V，默认 VDD/2
 VSB = 0.0         # V
 rho = 0.6
 TEMP = 300.0
@@ -92,7 +93,7 @@ TEMP = 300.0
 y = XTRACT(nch, L, VDS, VSB, rho=rho, TEMP=TEMP)
 
 print("=" * 50)
-print("XTRACT output (L = 1.00 µm, VDS = 2.5 V)")
+print(f"XTRACT output (L = {L:.2f} µm, VDS = {VDS:.2f} V)")
 print("=" * 50)
 print(f"  VDS           = {y[0]:.4f} V")
 print(f"  n             = {y[1]:.4f}")
@@ -213,18 +214,18 @@ axes2[1].set(xlabel='VDS (V)', ylabel='gds (uS)', title='gds vs VDS')
 axes2[1].legend(); axes2[1].grid(True, ls='--', alpha=0.4)
 fig2.tight_layout()
 
-vds_der = nch.VDS[(nch.VDS >= 2.0) & (nch.VDS <= 3.0)]
+vds_der = nch.VDS[(nch.VDS >= VDS - 0.1) & (nch.VDS <= VDS + 0.1)]
 der = EKV_params(nch, L, vds_der, VSB, rho=rho, TEMP=TEMP)
-i_der = np.argmin(np.abs(vds_der - 2.5))
+i_der = np.argmin(np.abs(vds_der - VDS))
 n_der, vt_der = der[i_der, 1], der[i_der, 2]
 dn_der, svt, sis = der[i_der, 4], der[i_der, 5], der[i_der, 6]
-gmid_lut = np.asarray(lookup(nch, 'GM_ID', 'VGS', nch.VGS, 'VDS', 2.5,
+gmid_lut = np.asarray(lookup(nch, 'GM_ID', 'VGS', nch.VGS, 'VDS', VDS,
                              'VSB', VSB, 'L', L, WARNING='off')).flatten()
-gds_id_lut = np.asarray(lookup(nch, 'GDS', 'VGS', nch.VGS, 'VDS', 2.5,
+gds_id_lut = np.asarray(lookup(nch, 'GDS', 'VGS', nch.VGS, 'VDS', VDS,
                                'VSB', VSB, 'L', L, WARNING='off')).flatten() / np.asarray(
-    lookup(nch, 'ID', 'VGS', nch.VGS, 'VDS', 2.5, 'VSB', VSB, 'L', L,
+    lookup(nch, 'ID', 'VGS', nch.VGS, 'VDS', VDS, 'VSB', VSB, 'L', L,
            WARNING='off')).flatten()
-gain_lut = np.asarray(lookup(nch, 'GM_GDS', 'VGS', nch.VGS, 'VDS', 2.5,
+gain_lut = np.asarray(lookup(nch, 'GM_GDS', 'VGS', nch.VGS, 'VDS', VDS,
                              'VSB', VSB, 'L', L, WARNING='off')).flatten()
 q_gain = np.maximum(1.0 / (n_der * UT * gmid_lut) - 1.0, np.finfo(float).tiny)
 x_gain = 2.0 * (q_gain - 1.0) + np.log(q_gain)

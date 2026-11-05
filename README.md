@@ -1,7 +1,7 @@
 # gm/ID 查找表生成（TSMC 65 nm / 40 nm / tsmc18）
 
 面向 TSMC 65 nm LP 1.2 V 核心器件、TSMC 40 nm LP 1.1 V 核心器件和
-TSMC 0.18 µm (tsmc18) 1.8 V 核心器件的 nch / pch gm/ID 查找表生成工具集：
+TSMC 0.18 µm (tsmc18) 1.8 V 核心器件、5V IO 器件的 nch / pch gm/ID 查找表生成工具集：
 Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工艺共用同一套
 仿真、提取与查询代码，通过 `config_<proc>.py` 区分扫描网格与模型卡。
 
@@ -50,15 +50,6 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 └── README.md
 ```
 
-示例脚本每张表一套（`<proc>` = `tsmcN65` / `tsmcN40` / `tsmc18` / `tsmc18_5v`）：
-
-- `lookup_demo_<proc>.{py,wl}`：3×3 张常用 gm/ID 设计图（`ID/W`、`gm/ID`、`VT`、
-  `fT`、固有增益、`VDSAT`、`Cgg/W`、`Cgd/Cgg`），固定 VDS = VDD/2、VSB = 0，扫 VGS；
-- `xtract_demo_<proc>.{py,wl}`：用 `XTRACT` 提取 n/VT/JS 及其对 VDS 的导数，重建
-  `JD`、`gm/ID`、`gds`、固有增益，并与查找表数据对比。
-
-脚本中的表路径（如 `D:\tsmcN65_lookup\...`）按实际 `MATDIR` 修改即可。
-
 ## 扫描网格
 
 三种工艺的参考器件相同：**W = 10 µm（2 µm/指 × 5 指）**，网表参数为
@@ -75,11 +66,7 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | L          | 0.06 ~ 2 µm → 41 点（0.06~0.20 步 0.01；0.25~1.00 步 0.05；1.10~2.00 步 0.10） |
 | 单变量网格 | 41 × 61 × 61 × 9 = 1,373,049 点，维度顺序 (L, VGS, VDS, VSB) |
 | 工艺角     | `tt ff ss fs sf` |
-| 输出文件   | `tsmcN65_nch_<corner>.h5` / `tsmcN65_pch_<corner>.h5`，共 10 个 |
-
-偏置轴取自 `techsweep_config_psp_65_spectre.m`（0 ~ VDD、25 mV），这里把 VGS/VDS
-步长收紧到 20 mV（与 40 nm 的做法一致，步长对应 61 点）；L 轴保留该配置
-0.06~1 µm 的分段并在其后续接到 2 µm。
+| 输出文件   | `tsmcN65_nch_<corner>.h5` / `tsmcN65_pch_<corner>.h5` |
 
 ### TSMC 40 nm — `config_tsmcN40.py`
 
@@ -92,7 +79,7 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | L          | 0.04 ~ 2 µm → 44 点（0.04~0.14 步 0.01；0.16~0.50 步 0.02；0.55~1.00 步 0.05；1.20~2.00 步 0.20） |
 | 单变量网格 | 44 × 56 × 56 × 9 = 1,241,856 点，维度顺序 (L, VGS, VDS, VSB) |
 | 工艺角     | `tt ff ss fs sf` |
-| 输出文件   | `tsmcN40_nch_<corner>.h5` / `tsmcN40_pch_<corner>.h5`，共 10 个 |
+| 输出文件   | `tsmcN40_nch_<corner>.h5` / `tsmcN40_pch_<corner>.h5` |
 
 ### TSMC 0.18 µm — `config_tsmc18.py`
 
@@ -105,7 +92,7 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | L          | 0.18 ~ 2 µm → 32 点（0.18~0.50 步 0.02；0.60~2.00 步 0.10） |
 | 单变量网格 | 32 × 73 × 73 × 11 = 1,875,808 点，维度顺序 (L, VGS, VDS, VSB) |
 | 工艺角     | `tt ff ss fs sf` |
-| 输出文件   | `tsmc18_nch_<corner>.h5` / `tsmc18_pch_<corner>.h5`，共 10 个 |
+| 输出文件   | `tsmc18_nch_<corner>.h5` / `tsmc18_pch_<corner>.h5` |
 
 ### TSMC 0.18 µm 5 V I/O — `config_tsmc18_5v.py`
 
@@ -117,20 +104,9 @@ Spectre 扫描仿真 + 数据提取，输出 HDF5（.h5）查找表。三种工�
 | VSB        | 0 ~ 3.5 V，步长 0.5 → 8 点 |
 | L          | nch_5：0.6 ~ 5 µm → 25 点；pch_5：0.5 ~ 5 µm → 27 点（额外多 0.5/0.55 两行） |
 | 单变量网格 | nch_5 25 × 101 × 101 × 8 = 2,040,200 点；pch_5 27 × 101 × 101 × 8 = 2,203,416 点 |
-| 工艺角     | `tt ff ss fs sf`（文件里不带 `_5` 后缀） |
-| 输出文件   | `tsmc18_nch_5_<corner>.h5` / `tsmc18_pch_5_<corner>.h5`，共 10 个（约 660 MB） |
-| 输出目录   | 独立目录 `D:\tsmc18_5v_lookup\`（与 1.8 V 的 `D:\tsmc18_lookup\` 分开） |
-
-网表里用 `section=tt_5`，但 `CORNER` 与文件名仍写 `tt`，`_5` 只加在器件名上
-（`tsmc18_nch_5_tt.h5`、`DEVICE = nch_5`），可与 1.8 V 表同目录共存。
-
-L 轴分两段来源：主扫描从 0.6 µm 起（`nch_5` 最短 0.6 µm，0.55 µm 报 `CMI-2440`），
-`pch_5` 的 0.5 / 0.55 µm 两行另跑一次 pch-only 短扫描后并入 pch 表，所以 pch 表比
-nch 表多两行；上限 5 µm 覆盖 5 V 器件的偏置/电流镜用法。该器件 `igcmod=0`，
-`IGD` / `IGS` 恒为 0。
-
-tsmc18（1.8 V）的四个扫描轴取自 `techsweep_config_bsim3_180_hspice.m`，参考器件由
-该配置的 W = 5 µm / 1 指改为 W = 10 µm / 5 指。
+| 工艺角     | `tt ff ss fs sf` |
+| 输出文件   | `tsmc18_nch_5_<corner>.h5` / `tsmc18_pch_5_<corner>.h5` |
+| 输出目录   | 独立目录 `D:\tsmc18_5v_lookup\` |
 
 ## 存储格式（.h5，HDF5）
 
